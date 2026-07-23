@@ -62,7 +62,7 @@
 // ════════════════════════════════════════
 const JSONBIN_KEY = '$2a$10$ethU97gAs0GdY/DxDuFtouxohpvAKXPXy2ma/rYMecnell/ktmW2G';
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
-let _binId = null; // akan dibuat otomatis saat pertama kali
+let _binId = '6a61d35bda38895dfe834cbb'; // BIN ID TETAP — semua device pakai ini
 
 const DEFAULT_DATA = {
   settings:{
@@ -133,68 +133,31 @@ const DB = {
     }catch(e){console.warn('JSONBin push gagal:',e);}
   },
 
-  // Init: load dari JSONBin atau buat bin baru
+  // Init: load dari JSONBin (bin ID sudah hardcode, sama untuk semua device)
   async init(){
-    // Cek apakah sudah ada bin ID tersimpan
-    _binId = _localGetBinId();
+    try{
+      const res = await fetch(`${JSONBIN_API}/b/${_binId}/latest`,{
+        headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':false},
+      });
+      if(res.ok){
+        const data = await res.json();
+        // Merge dengan default supaya key baru tetap ada
+        _cache.settings = {...DEFAULT_DATA.settings,...(data.settings||{})};
+        _cache.products = data.products||DEFAULT_DATA.products;
+        _cache.users    = data.users||[];
+        _cache.orders   = data.orders||[];
+        _cache.appeals  = data.appeals||[];
+        Object.keys(_cache).forEach(k=>_localSet(k,_cache[k]));
+        return;
+      }
+    }catch(e){console.warn('JSONBin load gagal, pakai cache lokal:',e);}
 
-    if(_binId){
-      // Ada bin ID → load data dari JSONBin
-      try{
-        const res = await fetch(`${JSONBIN_API}/b/${_binId}/latest`,{
-          headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':false},
-        });
-        if(res.ok){
-          const data = await res.json();
-          // Merge dengan default supaya key baru tetap ada
-          _cache.settings = {...DEFAULT_DATA.settings,...(data.settings||{})};
-          _cache.products = data.products||DEFAULT_DATA.products;
-          _cache.users    = data.users||[];
-          _cache.orders   = data.orders||[];
-          _cache.appeals  = data.appeals||[];
-          // Update localStorage cache
-          Object.keys(_cache).forEach(k=>_localSet(k,_cache[k]));
-          return;
-        }
-      }catch(e){console.warn('JSONBin load gagal, pakai cache lokal:',e);}
-    }
-
-    // Belum ada bin ID atau load gagal → cek localStorage cache dulu
-    const hasLocal = _localGet('settings');
-    if(hasLocal){
-      _cache.settings = _localGet('settings')||DEFAULT_DATA.settings;
-      _cache.products = _localGet('products')||DEFAULT_DATA.products;
-      _cache.users    = _localGet('users')||[];
-      _cache.orders   = _localGet('orders')||[];
-      _cache.appeals  = _localGet('appeals')||[];
-    } else {
-      // Benar-benar fresh → pakai default
-      _cache = {
-        settings:{...DEFAULT_DATA.settings},
-        products:[...DEFAULT_DATA.products],
-        users:[],orders:[],appeals:[],
-      };
-      Object.keys(_cache).forEach(k=>_localSet(k,_cache[k]));
-    }
-
-    // Buat bin baru di JSONBin
-    if(!_binId){
-      try{
-        const res = await fetch(`${JSONBIN_API}/b`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY,'X-Bin-Name':'MasAnDev','X-Bin-Private':'false'},
-          body:JSON.stringify({
-            settings:_cache.settings,products:_cache.products,
-            users:_cache.users,orders:_cache.orders,appeals:_cache.appeals,
-          }),
-        });
-        if(res.ok){
-          const json=await res.json();
-          _binId=json.metadata.id;
-          _localSetBinId(_binId);
-        }
-      }catch(e){console.warn('JSONBin buat bin gagal:',e);}
-    }
+    // Fallback ke localStorage jika JSONBin gagal
+    _cache.settings = _localGet('settings')||{...DEFAULT_DATA.settings};
+    _cache.products = _localGet('products')||[...DEFAULT_DATA.products];
+    _cache.users    = _localGet('users')||[];
+    _cache.orders   = _localGet('orders')||[];
+    _cache.appeals  = _localGet('appeals')||[];
   }
 };
 
