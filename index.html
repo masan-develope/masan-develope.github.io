@@ -50,24 +50,45 @@
   .seg{display:flex;background:#111;border-radius:10px;overflow:hidden;margin-bottom:20px;}
   .seg button{flex:1;padding:10px;background:transparent;color:#555;font-weight:700;font-size:13px;border:none;transition:all .2s;cursor:pointer;}
   .seg button.on{background:var(--primary);color:var(--primary-text);}
-  /* Hero Banner */
-  .hero-banner{position:relative;width:100%;height:200px;overflow:hidden;border-radius:16px;margin-bottom:20px;background:#111;}
+  /* Hero Banner — full bleed, no margin, no radius so it bleeds to edges */
+  .hero-banner{position:relative;width:calc(100% + 40px);margin-left:-20px;margin-right:-20px;height:260px;overflow:hidden;margin-bottom:20px;background:#111;margin-top:-80px;}
   .hero-banner img{width:100%;height:100%;object-fit:cover;}
-  .hero-banner-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.3),rgba(0,0,0,.7));display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .hero-banner-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.15) 0%,rgba(0,0,0,.75) 100%);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:28px;}
   /* Chat */
-  .chat-bubble{padding:10px 14px;border-radius:14px;font-size:13px;max-width:80%;line-height:1.5;margin-bottom:6px;word-break:break-word;}
+  .chat-bubble{padding:10px 14px;border-radius:14px;font-size:13px;max-width:80%;line-height:1.5;margin-bottom:2px;word-break:break-word;}
   .chat-bubble.me{background:var(--primary);color:var(--primary-text);align-self:flex-end;border-bottom-right-radius:4px;}
   .chat-bubble.them{background:#1a1a1a;color:#ddd;align-self:flex-start;border-bottom-left-radius:4px;}
-  .chat-time{font-size:10px;color:#444;margin-bottom:12px;}
+  .chat-time{font-size:10px;color:#444;margin-bottom:10px;}
   .chat-time.me{text-align:right;}
+  /* Typing indicator */
+  .typing-indicator{display:flex;align-items:center;gap:4px;padding:10px 14px;background:#1a1a1a;border-radius:14px;border-bottom-left-radius:4px;width:fit-content;align-self:flex-start;margin-bottom:8px;}
+  .typing-dot{width:7px;height:7px;background:#555;border-radius:50%;animation:typingBounce 1.2s infinite;}
+  .typing-dot:nth-child(2){animation-delay:.2s;}
+  .typing-dot:nth-child(3){animation-delay:.4s;}
+  @keyframes typingBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}
   /* Saved accounts popup */
   .saved-accts-popup{position:absolute;bottom:calc(100% + 8px);left:0;right:0;background:#111;border:1px solid #222;border-radius:14px;padding:8px;z-index:200;box-shadow:0 8px 32px rgba(0,0,0,.8);animation:slideUp .2s;}
   /* Notification badge */
-  .notif-badge{position:absolute;top:-4px;right:-4px;background:#ff4444;color:#fff;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;}
-  /* Push notification */
-  .push-notif{position:fixed;top:20px;right:20px;background:#1a1a1a;border:1px solid #333;border-radius:14px;padding:16px 18px;max-width:300px;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.9);animation:slideUp .3s;cursor:pointer;}
-  .push-notif .pn-title{font-weight:700;font-size:13px;margin-bottom:4px;}
-  .push-notif .pn-body{font-size:12px;color:#888;line-height:1.5;}
+  .notif-badge{background:#ff4444;color:#fff;border-radius:10px;min-width:17px;height:17px;font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;padding:0 4px;line-height:1;}
+  .notif-badge-abs{position:absolute;top:-5px;right:-5px;}
+  /* Push notification — top center like Android/iOS */
+  .push-notif{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#1c1c1e;border:1px solid #2a2a2a;border-radius:16px;padding:14px 16px;width:calc(100% - 32px);max-width:380px;z-index:99999;box-shadow:0 8px 40px rgba(0,0,0,.95);animation:slideDownNotif .35s cubic-bezier(.22,.61,.36,1);cursor:pointer;display:flex;gap:12px;align-items:flex-start;}
+  @keyframes slideDownNotif{from{opacity:0;transform:translateX(-50%) translateY(-100%)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  .push-notif .pn-icon{width:36px;height:36px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .push-notif .pn-content{flex:1;min-width:0;}
+  .push-notif .pn-app{font-size:11px;color:#888;font-weight:600;margin-bottom:2px;text-transform:uppercase;letter-spacing:.5px;}
+  .push-notif .pn-title{font-weight:700;font-size:13px;margin-bottom:2px;color:#fff;}
+  .push-notif .pn-body{font-size:12px;color:#888;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .push-notif .pn-close{background:none;border:none;color:#444;font-size:16px;padding:0;flex-shrink:0;line-height:1;}
+  /* Google account picker style */
+  .google-picker{background:#fff;border-radius:16px;overflow:hidden;max-height:70vh;overflow-y:auto;}
+  .google-picker-header{padding:20px 16px 12px;text-align:center;border-bottom:1px solid #eee;}
+  .google-picker-header img{width:32px;height:32px;margin-bottom:8px;}
+  .google-picker-row{display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;transition:background .15s;}
+  .google-picker-row:hover{background:#f5f5f5;}
+  .google-picker-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;flex-shrink:0;}
+  .google-picker-name{font-size:14px;font-weight:500;color:#202124;}
+  .google-picker-email{font-size:12px;color:#5f6368;}
 </style>
 </head>
 <body>
@@ -235,33 +256,37 @@ function startPolling(session){
       if(isFounder){
         // Notifikasi order baru
         const orders=data.orders||[];
-        if(orders.length>_lastOrderCount){
+        if(orders.length>_lastOrderCount&&_lastOrderCount>0){
           const newOrder=orders[orders.length-1];
-          showPushNotif('📦 Order Baru!',`${newOrder.userName} memesan ${newOrder.productName}`,'orders');
-          _lastOrderCount=orders.length;
+          if(newOrder)showPushNotif('📦 Order Baru!',`${newOrder.userName||'?'} memesan ${newOrder.productName||'?'}`,'orders',null,null);
         }
+        _lastOrderCount=orders.length;
 
-        // Notifikasi chat baru
+        // Notifikasi chat baru — cek pesan terbaru dari customer
         const chats=data.chats||[];
-        const founderChats=chats.filter(c=>c.messages&&c.messages.length>0);
-        let totalMsgs=founderChats.reduce((a,c)=>a+c.messages.length,0);
+        let totalMsgs=chats.reduce((a,c)=>a+(c.messages?.length||0),0);
         if(totalMsgs>_lastChatCount&&_lastChatCount>0){
-          const lastChat=founderChats.slice(-1)[0];
-          if(lastChat){
-            const lastMsg=lastChat.messages.slice(-1)[0];
+          // Cari pesan baru dari customer
+          for(const chat of [...chats].reverse()){
+            const msgs=chat.messages||[];
+            const lastMsg=msgs[msgs.length-1];
             if(lastMsg&&lastMsg.role==='customer'){
-              showPushNotif('💬 Pesan Baru!',`${lastChat.customerName}: ${lastMsg.text.slice(0,60)}...`,'chat');
+              const senderName=chat.userName||'Customer';
+              showPushNotif(
+                '💬 '+senderName,
+                lastMsg.text?.slice(0,80)||'',
+                'chat',
+                chat.id,
+                senderName
+              );
+              break;
             }
           }
         }
         _lastChatCount=totalMsgs;
 
-        // Refresh founder panel jika ada update
-        const fMain=document.getElementById('f-main');
-        if(fMain&&document.getElementById('ftab-orders')){
-          // silently update badge
-          updateFounderBadges(data);
-        }
+        // Update badge di sidebar
+        updateFounderBadges(data);
       }
     }catch(e){}
   }, 10000); // poll tiap 10 detik
@@ -272,28 +297,117 @@ function stopPolling(){
   _pollTimer=null;
 }
 
-// Push notification untuk founder
-function showPushNotif(title,body,tabTarget){
+// Push notification — tampil seperti Android/iOS notification bar
+function showPushNotif(title,body,tabTarget,chatId,senderName){
+  // Hapus notif lama dulu
+  const old=document.getElementById('ma-push-notif');
+  if(old&&old.parentNode)old.parentNode.removeChild(old);
+
+  const icon=tabTarget==='chat'?'💬':tabTarget==='orders'?'📦':'🔔';
   const el=document.createElement('div');
   el.className='push-notif';
-  el.innerHTML=`<div class="pn-title">${title}</div><div class="pn-body">${body}</div>`;
-  el.addEventListener('click',()=>{
-    document.body.removeChild(el);
+  el.id='ma-push-notif';
+
+  // Cek apakah ini chat (bisa reply langsung)
+  const isChat=tabTarget==='chat'&&chatId;
+
+  el.innerHTML=`
+    <div class="pn-icon">${icon}</div>
+    <div class="pn-content">
+      <div class="pn-app">MasAn Development</div>
+      <div class="pn-title">${sanitize(title)}</div>
+      <div class="pn-body">${sanitize(body)}</div>
+      ${isChat?`<div id="pn-reply-wrap" style="margin-top:8px;display:none;"><input id="pn-reply-inp" type="text" placeholder="Balas..." style="background:#2a2a2a;border:1px solid #333;color:#fff;padding:7px 10px;border-radius:8px;font-size:12px;width:100%;outline:none;"><button id="pn-reply-btn" style="margin-top:6px;background:#fff;color:#000;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;width:100%;">Kirim</button></div>`:''}
+    </div>
+    <button class="pn-close" id="pn-close-btn">✕</button>
+  `;
+
+  document.body.appendChild(el);
+
+  // Close btn
+  document.getElementById('pn-close-btn').addEventListener('click',e=>{e.stopPropagation();if(el.parentNode)el.parentNode.removeChild(el);});
+
+  // Click body → buka tab
+  el.addEventListener('click',e=>{
+    if(e.target.id==='pn-close-btn'||e.target.id==='pn-reply-inp'||e.target.id==='pn-reply-btn')return;
+    if(isChat){
+      const rw=document.getElementById('pn-reply-wrap');
+      if(rw){rw.style.display=rw.style.display==='none'?'block':'none';if(rw.style.display==='block')document.getElementById('pn-reply-inp')?.focus();return;}
+    }
+    if(el.parentNode)el.parentNode.removeChild(el);
     if(tabTarget&&window._founderSetTab) window._founderSetTab(tabTarget);
   });
-  document.body.appendChild(el);
-  setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},8000);
 
-  // Coba Web Notifications API
+  // Reply langsung dari notif
+  if(isChat){
+    const sendReply=()=>{
+      const inp=document.getElementById('pn-reply-inp');
+      const txt=inp?.value?.trim();
+      if(!txt)return;
+      sendChatMessage(chatId,txt,'founder');
+      inp.value='';
+      showToast('✅ Pesan terkirim');
+      setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},500);
+    };
+    setTimeout(()=>{
+      document.getElementById('pn-reply-btn')?.addEventListener('click',sendReply);
+      document.getElementById('pn-reply-inp')?.addEventListener('keydown',e=>{if(e.key==='Enter')sendReply();});
+    },100);
+  }
+
+  // Auto hide setelah 10 detik
+  setTimeout(()=>{
+    if(el.parentNode){el.style.animation='slideDownNotifOut .3s forwards';setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},300);}
+  },10000);
+
+  // Web Notifications API (muncul di HP jika diizinkan)
   if('Notification' in window&&Notification.permission==='granted'){
-    new Notification(title,{body,icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="16" fill="%23fff"/><text x="16" y="22" text-anchor="middle" font-size="18" font-family="Arial" font-weight="bold">M</text></svg>'});
+    try{
+      const n=new Notification(title,{
+        body,
+        icon:'https://masan-develope.github.io/favicon.ico',
+        tag:'masandev-'+tabTarget,
+        renotify:true,
+        requireInteraction:false,
+      });
+      n.onclick=()=>{window.focus();if(tabTarget&&window._founderSetTab)window._founderSetTab(tabTarget);};
+    }catch(e){}
   }
 }
+// Tambah keyframe untuk slide out
+(()=>{const s=document.createElement('style');s.textContent='@keyframes slideDownNotifOut{to{opacity:0;transform:translateX(-50%) translateY(-120%)}}';document.head.appendChild(s);})();
 
 function updateFounderBadges(data){
+  // Orders badge — jumlah pending
   const pendingOrders=(data.orders||[]).filter(o=>o.status==='pending').length;
-  const el=document.getElementById('ftab-orders');
-  if(el&&pendingOrders>0){el.querySelector('.badge')&&el.querySelector('.badge').remove();const b=document.createElement('span');b.className='badge';b.style.cssText='background:#ff4444;color:#fff;border-radius:8px;padding:1px 5px;font-size:9px;margin-left:auto;';b.textContent=pendingOrders;el.appendChild(b);}
+  _setBadge('ftab-orders', pendingOrders);
+
+  // Chat badge — total pesan customer yang belum dibaca (pakai localStorage tracking)
+  const chats=data.chats||[];
+  let totalUnread=0;
+  chats.forEach(chat=>{
+    const readKey='ma_chat_read_'+chat.id;
+    const lastRead=parseInt(localStorage.getItem(readKey)||'0');
+    const msgs=chat.messages||[];
+    for(let i=lastRead;i<msgs.length;i++){
+      if(msgs[i].role==='customer') totalUnread++;
+    }
+  });
+  _setBadge('ftab-chat', totalUnread);
+}
+
+function _setBadge(tabId, count){
+  const el=document.getElementById(tabId);
+  if(!el)return;
+  const old=el.querySelector('.tab-badge');
+  if(old)old.remove();
+  if(count>0){
+    const b=document.createElement('span');
+    b.className='tab-badge notif-badge';
+    b.style.cssText='background:#ff4444;color:#fff;border-radius:10px;min-width:17px;height:17px;font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;padding:0 4px;margin-left:auto;';
+    b.textContent=count>99?'99+':count;
+    el.appendChild(b);
+  }
 }
 
 // ════════════════════════════════════════
@@ -718,39 +832,106 @@ function renderAuth(){
     formWrap.appendChild(btn);
   }
 
-  // Google login simulation (tanpa Firebase — pakai data local tapi tampak Google)
+  // Google login — tampilan mirip Google account picker asli
   function simulateGoogleLogin(){
-    const bg=h('div',{class:'modal-bg',style:{zIndex:2000}},[
-      h('div',{class:'modal',style:{maxWidth:'360px',textAlign:'center'}},[
-        h('div',{style:{fontSize:'32px',marginBottom:'12px'}},'🔵'),
-        h('h3',{style:{fontWeight:800,fontSize:'18px',marginBottom:'6px'}},'Login dengan Google'),
-        h('p',{style:{color:'var(--text3)',fontSize:'13px',marginBottom:'20px'}},'Masukkan email Google kamu'),
-        (() => {
-          const gEmailInp=h('input',{type:'email',placeholder:'contoh@gmail.com',style:{marginBottom:'10px'}});
-          const gNameInp=h('input',{type:'text',placeholder:'Nama lengkap',style:{marginBottom:'16px'}});
-          const errG=h('p',{style:{color:'#ff4444',fontSize:'12px',marginBottom:'10px'}});
-          const cont=h('div',{},[gEmailInp,gNameInp,errG,
-            h('button',{class:'btn-w',style:{width:'100%',padding:'12px'},onClick(){
-              const ge=gEmailInp.value.trim().toLowerCase();
-              const gn=strip(gNameInp.value.trim());
-              if(!ge||!ge.includes('@')){errG.textContent='Email tidak valid';return;}
-              if(!gn){errG.textContent='Nama wajib diisi';return;}
-              document.body.removeChild(bg);
-              const users=DB.get('users')||[];
-              let user=users.find(u=>u.email===ge);
-              if(!user){
-                user={id:uid(),email:ge,pass:'google_'+uid(),name:gn,role:'customer',blocked:false,createdAt:now(),loginMethod:'google',phone:''};
-                DB.set('users',[...users,user]);showToast('Akun Google berhasil dibuat!');
-              }
-              if(user.blocked){renderBlocked(user);return;}
-              DB.set('session',user);saveAccount(user);startPolling(user);renderCustomer(user);
-            }},'Lanjutkan dengan Google'),
-            h('button',{style:{width:'100%',background:'none',border:'none',color:'#444',padding:'10px',fontSize:'13px',marginTop:'6px'},onClick(){document.body.removeChild(bg);}},'Batal'),
-          ]);
-          return cont;
-        })(),
-      ]),
-    ]);
+    const savedAccts=getSavedAccounts();
+    // Warna avatar Google-style
+    const avatarColors=['#4285f4','#ea4335','#34a853','#fbbc04','#9c27b0','#ff9800','#00bcd4','#e91e63','#009688','#3f51b5'];
+    function getColor(email){const code=email.charCodeAt(0)+email.charCodeAt(email.length-1);return avatarColors[code%avatarColors.length];}
+
+    function doGoogleLogin(email,name){
+      if(bg.parentNode)document.body.removeChild(bg);
+      const users=DB.get('users')||[];
+      let user=users.find(u=>u.email===email.toLowerCase());
+      if(!user){
+        user={id:uid(),email:email.toLowerCase(),pass:'google_'+uid(),name:name||email.split('@')[0],role:'customer',blocked:false,createdAt:now(),loginMethod:'google',phone:''};
+        DB.set('users',[...users,user]);
+        showToast('Akun Google berhasil dibuat!');
+      }
+      if(user.blocked){renderBlocked(user);return;}
+      DB.set('session',user);saveAccount(user);startPolling(user);renderCustomer(user);
+    }
+
+    // Build Google-style picker
+    const pickerEl=document.createElement('div');
+    pickerEl.className='google-picker';
+
+    // Header
+    const hdr=document.createElement('div');
+    hdr.className='google-picker-header';
+    hdr.innerHTML=`<div style="font-size:28px;margin-bottom:8px;">G</div><div style="font-size:16px;font-weight:500;color:#202124;margin-bottom:4px;">Pilih akun</div><div style="font-size:13px;color:#5f6368;">untuk melanjutkan ke MasAn Development</div>`;
+    pickerEl.appendChild(hdr);
+
+    // Saved accounts rows
+    if(savedAccts.length>0){
+      savedAccts.forEach(acct=>{
+        const row=document.createElement('div');
+        row.className='google-picker-row';
+        const color=getColor(acct.email);
+        const initial=(acct.name?.[0]||acct.email?.[0]||'?').toUpperCase();
+        row.innerHTML=`
+          <div class="google-picker-avatar" style="background:${color}">${initial}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="google-picker-name">${sanitize(acct.name||'')}</div>
+            <div class="google-picker-email">${sanitize(acct.email)}</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5f6368" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+        `;
+        row.addEventListener('click',()=>doGoogleLogin(acct.email,acct.name));
+        pickerEl.appendChild(row);
+      });
+    }
+
+    // "Use another account" row
+    const addRow=document.createElement('div');
+    addRow.className='google-picker-row';
+    addRow.innerHTML=`
+      <div class="google-picker-avatar" style="background:#e0e0e0;color:#5f6368;">+</div>
+      <div style="flex:1;"><div class="google-picker-name" style="color:#202124;">Gunakan akun lain</div></div>
+    `;
+    addRow.addEventListener('click',()=>{
+      // Show manual email input
+      pickerEl.innerHTML='';
+      const hdr2=document.createElement('div');
+      hdr2.className='google-picker-header';
+      hdr2.innerHTML=`<div style="font-size:28px;margin-bottom:8px;">G</div><div style="font-size:16px;font-weight:500;color:#202124;">Login dengan Google</div>`;
+      pickerEl.appendChild(hdr2);
+      const body=document.createElement('div');
+      body.style.cssText='padding:20px;';
+      const ei=document.createElement('input');
+      ei.type='email';ei.placeholder='Email';ei.style.cssText='background:#f5f5f5;border:1px solid #ddd;color:#202124;padding:12px 14px;border-radius:8px;font-size:14px;width:100%;outline:none;margin-bottom:10px;';
+      const ni=document.createElement('input');
+      ni.type='text';ni.placeholder='Nama lengkap';ni.style.cssText='background:#f5f5f5;border:1px solid #ddd;color:#202124;padding:12px 14px;border-radius:8px;font-size:14px;width:100%;outline:none;margin-bottom:16px;';
+      const err=document.createElement('p');
+      err.style.cssText='color:#d93025;font-size:12px;margin-bottom:10px;min-height:16px;';
+      const btn=document.createElement('button');
+      btn.textContent='Lanjutkan';
+      btn.style.cssText='width:100%;background:#1a73e8;color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:600;cursor:pointer;';
+      btn.addEventListener('click',()=>{
+        const e2=ei.value.trim().toLowerCase();
+        const n2=strip(ni.value.trim());
+        if(!e2||!e2.includes('@')){err.textContent='Email tidak valid';return;}
+        doGoogleLogin(e2,n2||e2.split('@')[0]);
+      });
+      const backBtn=document.createElement('button');
+      backBtn.textContent='← Kembali';
+      backBtn.style.cssText='width:100%;background:none;border:none;color:#1a73e8;padding:10px;font-size:13px;cursor:pointer;margin-top:6px;';
+      backBtn.addEventListener('click',()=>{if(bg.parentNode)document.body.removeChild(bg);simulateGoogleLogin();});
+      body.appendChild(ei);body.appendChild(ni);body.appendChild(err);body.appendChild(btn);body.appendChild(backBtn);
+      pickerEl.appendChild(body);
+    });
+    pickerEl.appendChild(addRow);
+
+    // Cancel
+    const cancelRow=document.createElement('div');
+    cancelRow.style.cssText='padding:12px 16px;text-align:center;border-top:1px solid #eee;font-size:13px;color:#1a73e8;cursor:pointer;';
+    cancelRow.textContent='Batal';
+    cancelRow.addEventListener('click',()=>{if(bg.parentNode)document.body.removeChild(bg);});
+    pickerEl.appendChild(cancelRow);
+
+    const bg=h('div',{class:'modal-bg',style:{zIndex:2000,background:'rgba(0,0,0,.7)'}});
+    bg.appendChild(pickerEl);
+    bg.addEventListener('click',e=>{if(e.target===bg&&bg.parentNode)document.body.removeChild(bg);});
     document.body.appendChild(bg);
   }
 
@@ -945,18 +1126,37 @@ function sendChatMessage(chatId,text,role){
   DB.set('chats',chats);
 }
 
+// Typing state per chat (simpan di memory saja)
+const _typingState={}; // chatId → {role, expires}
+
+function setTyping(chatId, role, isTyping){
+  const chats=DB.get('chats')||[];
+  const idx=chats.findIndex(c=>c.id===chatId);
+  if(idx===-1)return;
+  if(isTyping){chats[idx].typing=role;chats[idx].typingExp=Date.now()+4000;}
+  else{delete chats[idx].typing;delete chats[idx].typingExp;}
+  DB.set('chats',chats);
+}
+
 function buildChatUI(chatId, myRole, onClose){
   let chat=((DB.get('chats')||[]).find(c=>c.id===chatId));
   let pollChat;
+  let typingTimer=null;
+  let lastMsgCount=chat?.messages?.length||0;
 
-  const msgsEl=h('div',{style:{flex:1,overflowY:'auto',padding:'16px',display:'flex',flexDirection:'column',gap:'4px',minHeight:'0'}});
+  const msgsEl=h('div',{style:{flex:1,overflowY:'auto',padding:'16px',display:'flex',flexDirection:'column',gap:'0px',minHeight:'0'}});
   const inputEl=h('input',{type:'text',placeholder:'Ketik pesan...',style:{flex:1}});
   const sendBtn=h('button',{class:'btn-w',style:{padding:'10px 18px',flexShrink:0}}, '➤');
 
-  function renderMsgs(){
+  function renderMsgs(newData){
+    const prevScroll=msgsEl.scrollTop;
+    const atBottom=msgsEl.scrollHeight-msgsEl.clientHeight-prevScroll<40;
+
     msgsEl.innerHTML='';
-    chat=((DB.get('chats')||[]).find(c=>c.id===chatId));
+    const src=newData||DB.get('chats')||[];
+    chat=src.find(c=>c.id===chatId);
     if(!chat)return;
+
     chat.messages.forEach(msg=>{
       const isMe=msg.role===myRole;
       const bubble=h('div',{class:'chat-bubble '+(isMe?'me':'them')},msg.text);
@@ -964,13 +1164,24 @@ function buildChatUI(chatId, myRole, onClose){
       msgsEl.appendChild(bubble);
       msgsEl.appendChild(time);
     });
-    msgsEl.scrollTop=msgsEl.scrollHeight;
+
+    // Typing indicator — tampilkan jika pihak lain sedang mengetik
+    const otherRole=myRole==='founder'?'customer':'founder';
+    if(chat.typing===otherRole&&chat.typingExp&&Date.now()<chat.typingExp){
+      const typingEl=document.createElement('div');
+      typingEl.className='typing-indicator';
+      typingEl.innerHTML='<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
+      msgsEl.appendChild(typingEl);
+    }
+
+    if(atBottom) msgsEl.scrollTop=msgsEl.scrollHeight;
   }
 
   function sendMsg(){
     const txt=strip(inputEl.value.trim());
     if(!txt)return;
     sendChatMessage(chatId,txt,myRole);
+    setTyping(chatId,myRole,false);
     inputEl.value='';
     renderMsgs();
   }
@@ -978,25 +1189,35 @@ function buildChatUI(chatId, myRole, onClose){
   sendBtn.addEventListener('click',sendMsg);
   inputEl.addEventListener('keydown',e=>{if(e.key==='Enter')sendMsg();});
 
-  // Poll chat tiap 5 detik
+  // Typing broadcast
+  inputEl.addEventListener('input',()=>{
+    clearTimeout(typingTimer);
+    setTyping(chatId,myRole,true);
+    typingTimer=setTimeout(()=>setTyping(chatId,myRole,false),3500);
+  });
+
+  // Poll chat tiap 3 detik — lebih cepat untuk real-time feel
   pollChat=setInterval(async()=>{
     try{
       const res=await fetch(`${JSONBIN_API}/b/${_binId}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':false}});
       if(!res.ok)return;
       const data=await res.json();
-      if(data.chats){_cache.chats=data.chats;_localSet('chats',data.chats);}
-      renderMsgs();
+      if(data.chats){
+        _cache.chats=data.chats;
+        _localSet('chats',data.chats);
+        renderMsgs(data.chats);
+      }
     }catch(e){}
-  },5000);
+  },3000);
 
-  const wrap=h('div',{style:{display:'flex',flexDirection:'column',height:'420px'}},[
+  const wrap=h('div',{style:{display:'flex',flexDirection:'column',height:'460px'}},[
     msgsEl,
     h('div',{style:{padding:'12px 16px',borderTop:'1px solid var(--border)',display:'flex',gap:'8px',alignItems:'center'}},[inputEl,sendBtn]),
   ]);
 
   renderMsgs();
 
-  return {el:wrap, destroy:()=>clearInterval(pollChat)};
+  return {el:wrap, destroy:()=>{clearInterval(pollChat);clearTimeout(typingTimer);setTyping(chatId,myRole,false);}};
 }
 
 // ════════════════════════════════════════
@@ -1019,21 +1240,24 @@ function renderCustomer(user){
   function buildHome(){
     const ann=s.announcementBarOn&&s.announcementBar ? h('div',{style:{background:'var(--primary)',color:'var(--primary-text)',padding:'10px 20px',textAlign:'center',fontSize:'13px',fontWeight:600}},s.announcementBar) : null;
     
-    // Hero Banner
+    // Hero Banner — full bleed, extends behind top navbar
     const heroSection=s.heroBanner ? h('div',{class:'hero-banner'},[
-      h('img',{src:s.heroBanner,alt:'banner'}),
+      h('img',{src:s.heroBanner,alt:'banner',style:{width:'100%',height:'100%',objectFit:'cover'}}),
       h('div',{class:'hero-banner-overlay'},[
-        (() => { const l=logoEl(72,{}); return l; })(),
-        h('h1',{style:{fontSize:'24px',fontWeight:900,letterSpacing:'-1px',marginTop:'12px',color:'#fff',textShadow:'0 2px 8px rgba(0,0,0,.5)'}},s.siteName||'MasAn Development'),
-        h('p',{style:{color:'rgba(255,255,255,.8)',fontSize:'13px'}},s.tagline||''),
+        (() => {
+          const l=logoEl(72,{border:'3px solid rgba(255,255,255,.3)',boxShadow:'0 4px 20px rgba(0,0,0,.6)'});
+          return l;
+        })(),
+        h('h1',{style:{fontSize:'24px',fontWeight:900,letterSpacing:'-0.5px',marginTop:'10px',color:'#fff',textShadow:'0 2px 12px rgba(0,0,0,.7)',textAlign:'center'}},s.siteName||'MasAn Development'),
+        h('p',{style:{color:'rgba(255,255,255,.75)',fontSize:'13px',textShadow:'0 1px 4px rgba(0,0,0,.5)'}},s.tagline||''),
       ]),
-    ]) : h('div',{style:{textAlign:'center',marginBottom:'36px'}},[
+    ]) : h('div',{style:{textAlign:'center',marginBottom:'36px',paddingTop:'16px'}},[
       (() => { const l=logoEl(96,{margin:'0 auto 20px'}); l.style.display='block'; return l; })(),
       h('h1',{style:{fontSize:'30px',fontWeight:900,letterSpacing:'-1.5px',marginTop:'20px',marginBottom:'10px'}},s.siteName||'MasAn Development'),
       h('p',{style:{color:'var(--text2)',fontSize:'14px',lineHeight:1.6}},s.tagline||''),
     ]);
 
-    const content=h('div',{style:{padding:'48px 0 32px'}},[
+    const content=h('div',{style:{padding:'0 0 32px'}},[
       heroSection,
       h('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'20px'}},[
         h('button',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'16px',padding:'20px',cursor:'pointer',textAlign:'left'},onClick(){setPage('products')}},[
@@ -1286,8 +1510,27 @@ function renderCustomer(user){
     ]),
     h('div',{id:'cust-content',style:{paddingTop:'64px',paddingBottom:'90px',maxWidth:'700px',margin:'0 auto',padding:'80px 20px 90px'}}),
     h('div',{style:{position:'fixed',bottom:0,left:0,right:0,background:'rgba(0,0,0,.95)',backdropFilter:'blur(12px)',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-around',padding:'8px 0 12px'}},
-      navItems.map(n=>h('button',{id:'nav-'+n.id,style:{background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',padding:'6px 16px'},onClick(){selectedProduct=null;setPage(n.id);}},[
-        h('span',{style:{fontSize:'20px'}},n.icon),
+      navItems.map(n=>h('button',{id:'nav-'+n.id,style:{background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',padding:'6px 16px',position:'relative'},onClick(){selectedProduct=null;setPage(n.id);if(n.id==='chat'){const b=document.getElementById('chat-nav-badge');if(b)b.remove();}}},[
+        h('div',{style:{position:'relative',display:'inline-block'}},[
+          h('span',{style:{fontSize:'20px'}},n.icon),
+          n.id==='chat' ? (() => {
+            // Badge chat customer — hitung pesan founder yang belum dibaca
+            const chats=DB.get('chats')||[];
+            const myChat=chats.find(c=>c.userId===user.id);
+            const msgs=myChat?.messages||[];
+            let unread=0;
+            for(let i=msgs.length-1;i>=0;i--){
+              if(msgs[i].role==='founder')unread++;
+              else break;
+            }
+            if(unread===0)return h('span',{});
+            const b=document.createElement('span');
+            b.id='chat-nav-badge';
+            b.style.cssText='position:absolute;top:-4px;right:-6px;background:#25d366;color:#fff;border-radius:10px;min-width:16px;height:16px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 3px;';
+            b.textContent=unread>99?'99+':String(unread);
+            return b;
+          })() : h('span',{}),
+        ]),
         h('span',{style:{fontSize:'10px',color:'var(--text3)',fontWeight:400}},n.label),
       ]))
     ),
@@ -1348,6 +1591,9 @@ function renderFounder(){
       const btn=document.getElementById('ftab-'+tb.id);
       if(btn){btn.style.background=tb.id===t?'#111':'none';btn.style.color=tb.id===t?'#fff':'#444';}
     });
+    // Clear badge ketika tab dibuka
+    if(t==='orders') _setBadge('ftab-orders',0);
+    if(t==='chat') _setBadge('ftab-chat',0);
   }
 
   function buildContent(){
@@ -1546,36 +1792,48 @@ function renderFounder(){
     ]);
   }
 
-  // Founder Chat Tab — pilih user untuk chat
+  // Helper: hitung unread per chat (pesan customer berturutan di akhir)
+  function countUnread(chat){
+    const msgs=chat.messages||[];
+    let n=0;
+    for(let i=msgs.length-1;i>=0;i--){
+      if(msgs[i].role==='customer')n++;
+      else break;
+    }
+    return n;
+  }
+
+  // Founder Chat Tab
   function buildFounderChat(){
-    const allChats=DB.get('chats')||[];
-    const wrap=h('div',{},[
+    const wrap=h('div',{id:'founder-chat-wrap'},[
       h('h2',{style:{fontSize:'24px',fontWeight:800,marginBottom:'6px'}},'Chat Customer'),
       h('p',{style:{color:'#444',fontSize:'13px',marginBottom:'20px'}},'Pilih percakapan untuk dibalas'),
     ]);
 
-    if(allChats.length===0){
-      wrap.appendChild(h('div',{class:'card',style:{textAlign:'center',padding:'40px'}},[
-        h('div',{style:{fontSize:'40px',marginBottom:'12px'}},'💬'),
-        h('p',{style:{color:'#333'}},'Belum ada percakapan. Chat akan muncul setelah order di-acc.'),
-      ]));
-      return wrap;
-    }
-
-    const [selectedChat,setSelectedChat]=[{val:null},{fn:null}];
+    const listEl=h('div',{id:'founder-chat-list',style:{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'20px'}});
     const chatPanel=h('div',{id:'founder-chat-panel'});
 
     let currentChatDestroy=null;
+    let currentOpenChatId=null;
+    let listPollTimer=null;
 
     function openChat(chat){
       if(currentChatDestroy){currentChatDestroy();currentChatDestroy=null;}
+      currentOpenChatId=chat.id;
       chatPanel.innerHTML='';
+
+      // Tandai sudah dibaca — reset unread dengan cara tambah pesan kosong founder (tidak, cukup flag)
+      // Simpan "lastReadAt" per chat di localStorage
+      const readKey='ma_chat_read_'+chat.id;
+      const msgs=((DB.get('chats')||[]).find(c=>c.id===chat.id)?.messages)||[];
+      localStorage.setItem(readKey, String(msgs.length));
+
       const header=h('div',{style:{display:'flex',alignItems:'center',gap:'10px',padding:'12px 16px',borderBottom:'1px solid #1a1a1a'}},[
-        h('button',{style:{background:'none',border:'none',color:'#444',fontSize:'18px'},onClick(){chatPanel.innerHTML='';}},'←'),
-        h('div',{style:{width:'36px',height:'36px',borderRadius:'50%',background:'#1a1a1a',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}},chat.userName?.[0]||'?'),
-        h('div',{},[
-          h('div',{style:{fontWeight:700,fontSize:'14px'}},chat.userName),
-          h('div',{style:{color:'#444',fontSize:'11px'}},chat.userEmail),
+        h('button',{style:{background:'none',border:'none',color:'#444',fontSize:'20px',lineHeight:1},onClick(){chatPanel.innerHTML='';currentOpenChatId=null;renderList();}},'←'),
+        h('div',{style:{width:'38px',height:'38px',borderRadius:'50%',background:'#222',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:'16px'}},chat.userName?.[0]?.toUpperCase()||'?'),
+        h('div',{style:{flex:1}},[
+          h('div',{style:{fontWeight:700,fontSize:'14px'}},chat.userName||'Customer'),
+          h('div',{style:{color:'#444',fontSize:'11px'}},chat.userEmail||''),
         ]),
       ]);
       const {el:chatEl,destroy}=buildChatUI(chat.id,'founder');
@@ -1584,23 +1842,154 @@ function renderFounder(){
       chatPanel.appendChild(container);
     }
 
-    const list=h('div',{style:{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'20px'}},
-      allChats.map(chat=>{
-        const lastMsg=chat.messages?.slice(-1)[0];
-        return h('div',{style:{background:'#0a0a0a',border:'1px solid #1a1a1a',borderRadius:'12px',padding:'14px',cursor:'pointer',display:'flex',alignItems:'center',gap:'12px'},onClick(){openChat(chat);}},[
-          h('div',{style:{width:'40px',height:'40px',borderRadius:'50%',background:'#111',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,flexShrink:0}},chat.userName?.[0]||'?'),
-          h('div',{style:{flex:1,minWidth:0}},[
-            h('div',{style:{fontWeight:700,fontSize:'14px'}},chat.userName),
-            h('div',{style:{color:'#444',fontSize:'12px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},lastMsg?lastMsg.text:'Belum ada pesan'),
-          ]),
-          h('div',{style:{color:'#333',fontSize:'11px'}},chat.lastActivity||chat.createdAt||''),
-        ]);
-      })
-    );
+    function renderList(){
+      const allChats=DB.get('chats')||[];
+      listEl.innerHTML='';
 
-    wrap.appendChild(list);
+      if(allChats.length===0){
+        listEl.appendChild(h('div',{class:'card',style:{textAlign:'center',padding:'40px'}},[
+          h('div',{style:{fontSize:'40px',marginBottom:'12px'}},'💬'),
+          h('p',{style:{color:'#333'}},'Belum ada percakapan. Chat aktif setelah order di-acc (status "done").'),
+        ]));
+        return;
+      }
+
+      // Sort: yang ada unread atau typing duluan
+      const sorted=[...allChats].sort((a,b)=>{
+        const ua=getUnreadCount(a), ub=getUnreadCount(b);
+        if(ub!==ua) return ub-ua;
+        const ta=new Date(a.lastActivity||a.createdAt||0).getTime();
+        const tb=new Date(b.lastActivity||b.createdAt||0).getTime();
+        return tb-ta;
+      });
+
+      sorted.forEach(chat=>{
+        const unread=getUnreadCount(chat);
+        const lastMsg=chat.messages?.slice(-1)[0];
+        const isTyping=chat.typing==='customer'&&chat.typingExp&&Date.now()<chat.typingExp;
+        const isOpen=currentOpenChatId===chat.id;
+
+        const avatarColors=['#4285f4','#ea4335','#34a853','#fbbc04','#9c27b0','#ff9800'];
+        const col=avatarColors[(chat.userName?.charCodeAt(0)||0)%avatarColors.length];
+
+        const row=document.createElement('div');
+        row.style.cssText=`background:${isOpen?'#111':'#0a0a0a'};border:1px solid ${unread>0?'#2a2a2a':'#1a1a1a'};border-radius:12px;padding:14px;cursor:pointer;display:flex;align-items:center;gap:12px;transition:background .15s;`;
+        row.addEventListener('mouseenter',()=>{if(!isOpen)row.style.background='#0f0f0f';});
+        row.addEventListener('mouseleave',()=>{if(!isOpen)row.style.background=isOpen?'#111':'#0a0a0a';});
+
+        // Avatar
+        const av=document.createElement('div');
+        av.style.cssText=`width:44px;height:44px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;color:#fff;flex-shrink:0;`;
+        av.textContent=(chat.userName?.[0]||'?').toUpperCase();
+        row.appendChild(av);
+
+        // Info
+        const info=document.createElement('div');
+        info.style.cssText='flex:1;min-width:0;';
+
+        const nameRow=document.createElement('div');
+        nameRow.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:3px;';
+        const nameEl=document.createElement('span');
+        nameEl.style.cssText=`font-weight:${unread>0?'800':'600'};font-size:14px;color:${unread>0?'#fff':'#ccc'};`;
+        nameEl.textContent=chat.userName||'Customer';
+        nameRow.appendChild(nameEl);
+        info.appendChild(nameRow);
+
+        const previewEl=document.createElement('div');
+        previewEl.style.cssText=`font-size:12px;color:${isTyping?'#44ff44':unread>0?'#aaa':'#444'};font-style:${isTyping?'italic':'normal'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
+        if(isTyping){
+          previewEl.innerHTML='<span style="letter-spacing:2px">● ● ●</span> mengetik...';
+        } else {
+          const prefix=lastMsg?.role==='founder'?'Kamu: ':'';
+          previewEl.textContent=lastMsg?(prefix+lastMsg.text):'Belum ada pesan';
+        }
+        info.appendChild(previewEl);
+        row.appendChild(info);
+
+        // Right side: waktu + badge
+        const right=document.createElement('div');
+        right.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;';
+
+        const timeEl=document.createElement('div');
+        timeEl.style.cssText='color:#333;font-size:10px;';
+        const ts=chat.lastActivity||chat.createdAt||'';
+        timeEl.textContent=ts.split(',')[0]||ts;
+        right.appendChild(timeEl);
+
+        if(unread>0){
+          const badge=document.createElement('div');
+          badge.style.cssText='background:#25d366;color:#fff;border-radius:50%;min-width:22px;height:22px;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;';
+          badge.textContent=unread>99?'99+':String(unread);
+          right.appendChild(badge);
+        }
+        row.appendChild(right);
+
+        row.addEventListener('click',()=>{openChat(chat);renderList();});
+        listEl.appendChild(row);
+      });
+
+      // Update sidebar badge total
+      const totalUnread=allChats.reduce((a,c)=>a+getUnreadCount(c),0);
+      _setBadge('ftab-chat', totalUnread);
+    }
+
+    // getUnreadCount pakai localStorage untuk track "sudah dibaca"
+    function getUnreadCount(chat){
+      const readKey='ma_chat_read_'+chat.id;
+      const lastRead=parseInt(localStorage.getItem(readKey)||'0');
+      const msgs=chat.messages||[];
+      // Hitung pesan customer setelah index lastRead
+      let n=0;
+      for(let i=lastRead;i<msgs.length;i++){
+        if(msgs[i].role==='customer') n++;
+      }
+      return n;
+    }
+
+    // Live-refresh list tiap 4 detik
+    listPollTimer=setInterval(async()=>{
+      try{
+        const res=await fetch(`${JSONBIN_API}/b/${_binId}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':false}});
+        if(!res.ok)return;
+        const data=await res.json();
+        if(data.chats){_cache.chats=data.chats;_localSet('chats',data.chats);}
+        if(!currentOpenChatId) renderList(); // hanya refresh list jika chat tidak sedang terbuka
+        else {
+          // Tetap update badge di list tanpa full render
+          const allChats=DB.get('chats')||[];
+          const totalUnread=allChats.reduce((a,c)=>a+getUnreadCount(c),0);
+          _setBadge('ftab-chat', totalUnread);
+        }
+      }catch(e){}
+    },4000);
+
+    // Cleanup saat tab diganti
+    const origSetTab=window._founderSetTab;
+    window._founderSetTab=(t)=>{
+      clearInterval(listPollTimer);
+      if(currentChatDestroy){currentChatDestroy();currentChatDestroy=null;}
+      origSetTab(t);
+    };
+
+    renderList();
+    wrap.appendChild(listEl);
     wrap.appendChild(chatPanel);
+
+    // Inisialisasi badge sidebar dari data saat ini
+    const allChats=DB.get('chats')||[];
+    const totalUnread=allChats.reduce((a,c)=>a+getUnreadCount(c),0);
+    _setBadge('ftab-chat', totalUnread);
+
     return wrap;
+
+    function getUnreadCount(chat){
+      const readKey='ma_chat_read_'+chat.id;
+      const lastRead=parseInt(localStorage.getItem(readKey)||'0');
+      const msgs=chat.messages||[];
+      let n=0;
+      for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='customer')n++;}
+      return n;
+    }
   }
 
   function buildAppeals(){
@@ -1902,6 +2291,12 @@ function renderFounder(){
   render(screen);
   setTab('dashboard');
   startPolling({role:'founder',id:'founder'});
+
+  // Inisialisasi badge langsung dari data saat ini
+  setTimeout(()=>{
+    const data={orders:DB.get('orders')||[],chats:DB.get('chats')||[]};
+    updateFounderBadges(data);
+  },300);
 }
 
 // ════════════════════════════════════════
