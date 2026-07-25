@@ -105,6 +105,43 @@ const JSONBIN_KEY = '$2a$10$ethU97gAs0GdY/DxDuFtouxohpvAKXPXy2ma/rYMecnell/ktmW2
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 let _binId = '6a61d35bda38895dfe834cbb';
 
+// ════════════════════════════════════════
+// IMGBB CONFIG — upload foto ke imgbb.com
+// ════════════════════════════════════════
+const IMGBB_KEY = 'ea0cc6165042587bc63a5614caa708a2';
+
+// Upload 1 file ke imgbb, return URL string
+async function uploadToImgbb(fileOrBase64){
+  const form = new FormData();
+  if(typeof fileOrBase64 === 'string'){
+    // base64 string — strip header dulu
+    const b64 = fileOrBase64.includes(',') ? fileOrBase64.split(',')[1] : fileOrBase64;
+    form.append('image', b64);
+  } else {
+    // File object langsung
+    form.append('image', fileOrBase64);
+  }
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_KEY}`, {
+    method: 'POST',
+    body: form,
+  });
+  if(!res.ok) throw new Error('imgbb upload gagal: '+res.status);
+  const data = await res.json();
+  if(!data.success) throw new Error('imgbb error: '+(data.error?.message||'unknown'));
+  return data.data.url; // URL permanen
+}
+
+// Upload banyak file sekaligus, return array URL
+async function uploadManyToImgbb(filesOrBase64Array, onProgress){
+  const urls = [];
+  for(let i=0; i<filesOrBase64Array.length; i++){
+    if(onProgress) onProgress(i+1, filesOrBase64Array.length);
+    const url = await uploadToImgbb(filesOrBase64Array[i]);
+    urls.push(url);
+  }
+  return urls;
+}
+
 const DEFAULT_DATA = {
   settings:{
     siteName:'MasAn Development',
@@ -2003,11 +2040,11 @@ function renderFounder(){
     function prodForm(){
       const isEdit=!!(editProduct&&editProduct.id);
       const fields={};
-      // State lokal untuk gallery & file
+      // State lokal — sudah berupa URL imgbb (bukan base64)
       let galleryImages=[...(editProduct?.gallery||[])];
       let fileData=editProduct?.fileData||null;
       let fileName=editProduct?.fileName||'';
-      let thumbData=editProduct?.thumb||'';
+      let thumbData=editProduct?.thumb||''; // URL imgbb atau base64 lama
 
       const galleryWrap=document.createElement('div');
       galleryWrap.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;';
@@ -2028,9 +2065,13 @@ function renderFounder(){
       renderGallery();
 
       const thumbPreview=document.createElement('div');
-      thumbPreview.style.cssText='width:72px;height:72px;border-radius:8px;overflow:hidden;border:1px solid #333;margin-top:8px;display:flex;align-items:center;justify-content:center;background:#111;';
+      thumbPreview.style.cssText='width:72px;height:72px;border-radius:8px;overflow:hidden;border:1px solid #333;margin-top:8px;display:flex;align-items:center;justify-content:center;background:#111;font-size:11px;color:#555;text-align:center;';
       function renderThumbPreview(){thumbPreview.innerHTML='';if(thumbData){const im=document.createElement('img');im.src=thumbData;im.style.cssText='width:100%;height:100%;object-fit:cover;';thumbPreview.appendChild(im);}else{thumbPreview.textContent='📦';}}
       renderThumbPreview();
+
+      const thumbStatus=document.createElement('div');
+      thumbStatus.style.cssText='color:#555;font-size:11px;margin-top:4px;';
+      thumbStatus.textContent=thumbData?'✅ Foto tersimpan':'';
 
       const fileStatus=document.createElement('div');
       fileStatus.style.cssText='color:#25d366;font-size:12px;margin-top:6px;';
@@ -2047,33 +2088,57 @@ function renderFounder(){
           fields[f.key]=inp;
           return h('div',{class:'form-row'},[h('label',{class:'lbl'},f.label),inp]);
         }),
-        // Thumbnail
+        // Thumbnail — upload ke imgbb saat pilih
         h('div',{class:'form-row'},[
           h('label',{class:'lbl'},'Thumbnail Utama'),
           h('input',{type:'file',accept:'image/*',style:{background:'none',border:'none',color:'#555',padding:'4px 0'},onChange:async(e)=>{
             const f=e.target.files[0];if(!f)return;
-            thumbData=await toBase64(f);renderThumbPreview();
+            thumbStatus.textContent='⏳ Mengupload...';thumbStatus.style.color='#888';
+            try{
+              thumbData=await uploadToImgbb(f);
+              renderThumbPreview();
+              thumbStatus.textContent='✅ Upload berhasil!';thumbStatus.style.color='#25d366';
+            }catch(err){thumbStatus.textContent='❌ Upload gagal: '+err.message;thumbStatus.style.color='#ff4444';}
           }}),
           thumbPreview,
+          thumbStatus,
         ]),
-        // Gallery foto banyak
+        // Gallery foto — upload ke imgbb satu per satu
         h('div',{class:'form-row'},[
           h('label',{class:'lbl'},'Gallery Foto Detail (bisa banyak)'),
-          h('input',{type:'file',accept:'image/*',multiple:true,style:{background:'none',border:'none',color:'#555',padding:'4px 0'},onChange:async(e)=>{
-            const files=Array.from(e.target.files);
-            for(const f of files){const b64=await toBase64(f);galleryImages.push(b64);}
-            renderGallery();
-          }}),
-          galleryWrap,
+          (() => {
+            const galStatus=document.createElement('div');
+            galStatus.style.cssText='color:#888;font-size:11px;margin-top:4px;';
+            const inp=document.createElement('input');
+            inp.type='file';inp.accept='image/*';inp.multiple=true;
+            inp.style.cssText='background:none;border:none;color:#555;padding:4px 0;';
+            inp.addEventListener('change',async(e)=>{
+              const files=Array.from(e.target.files);
+              galStatus.textContent='⏳ Mengupload '+files.length+' foto...';galStatus.style.color='#888';
+              try{
+                const urls=await uploadManyToImgbb(files,(cur,total)=>{
+                  galStatus.textContent='⏳ Upload foto '+cur+'/'+total+'...';
+                });
+                galleryImages.push(...urls);
+                renderGallery();
+                galStatus.textContent='✅ '+files.length+' foto berhasil diupload!';galStatus.style.color='#25d366';
+              }catch(err){galStatus.textContent='❌ Upload gagal: '+err.message;galStatus.style.color='#ff4444';}
+              inp.value='';
+            });
+            const wrap=document.createElement('div');
+            wrap.appendChild(inp);wrap.appendChild(galStatus);wrap.appendChild(galleryWrap);
+            return wrap;
+          })(),
         ]),
-        // File download
+        // File download — tetap base64 (file bukan gambar)
         h('div',{class:'form-row'},[
           h('label',{class:'lbl'},'File Download (terkunci sampai order done)'),
           h('input',{type:'file',style:{background:'none',border:'none',color:'#555',padding:'4px 0'},onChange:async(e)=>{
             const f=e.target.files[0];if(!f)return;
             if(f.size>4*1024*1024){showToast('File maks 4MB (limit JSONBin).','err');return;}
-            fileData=await toBase64(f);fileName=f.name;
-            fileStatus.textContent='File: '+fileName+' ('+Math.round(f.size/1024)+'KB)';
+            const reader=new FileReader();
+            reader.onload=ev=>{fileData=ev.target.result;fileName=f.name;fileStatus.textContent='File: '+fileName+' ('+Math.round(f.size/1024)+'KB)';};
+            reader.readAsDataURL(f);
           }}),
           fileStatus,
           h('p',{style:{color:'#333',fontSize:'11px',marginTop:'4px'}},'⚠️ Maks 4MB. Customer hanya bisa download jika ordernya sudah "done".'),
@@ -2092,9 +2157,7 @@ function renderFounder(){
             let prods=DB.get('products')||[];
             if(p.id&&prods.find(x=>x.id===p.id)) prods=prods.map(x=>x.id===p.id?{...x,...p}:x);
             else prods=[...prods,{...p,id:uid()}];
-            // Simpan ke cache & localStorage dulu, lalu push ke JSONBin
-            _cache.products=prods;
-            _localSet('products',prods);
+            _cache.products=prods;_localSet('products',prods);
             showToast('Menyimpan... ⏳');
             DB._push().then(()=>showToast('Produk disimpan! ✅')).catch(()=>showToast('Gagal simpan ke server','err'));
             editProduct=null;setTab('products');
@@ -2502,11 +2565,29 @@ function renderFounder(){
         h('div',{class:'form-row'},[h('label',{class:'lbl'},'Catatan / Ulasan'),noteInp]),
         h('div',{class:'form-row'},[
           h('label',{class:'lbl'},'Foto Bukti (bisa banyak)'),
-          h('input',{type:'file',accept:'image/*',multiple:true,style:{background:'none',border:'none',color:'#555',padding:'4px 0'},onChange:async(e)=>{
-            for(const f of Array.from(e.target.files)){images.push(await toBase64(f));}
-            renderGal();
-          }}),
-          galleryWrap,
+          (() => {
+            const galStatus=document.createElement('div');
+            galStatus.style.cssText='color:#888;font-size:11px;margin-top:4px;';
+            const inp=document.createElement('input');
+            inp.type='file';inp.accept='image/*';inp.multiple=true;
+            inp.style.cssText='background:none;border:none;color:#555;padding:4px 0;';
+            inp.addEventListener('change',async(e)=>{
+              const files=Array.from(e.target.files);
+              galStatus.textContent='⏳ Mengupload '+files.length+' foto ke imgbb...';galStatus.style.color='#888';
+              try{
+                const urls=await uploadManyToImgbb(files,(cur,total)=>{
+                  galStatus.textContent='⏳ Upload foto '+cur+'/'+total+'...';
+                });
+                images.push(...urls);
+                renderGal();
+                galStatus.textContent='✅ '+files.length+' foto berhasil!';galStatus.style.color='#25d366';
+              }catch(err){galStatus.textContent='❌ Upload gagal: '+err.message;galStatus.style.color='#ff4444';}
+              inp.value='';
+            });
+            const wrap=document.createElement('div');
+            wrap.appendChild(inp);wrap.appendChild(galStatus);wrap.appendChild(galleryWrap);
+            return wrap;
+          })(),
         ]),
         h('div',{style:{display:'flex',gap:'10px',marginTop:'8px'}},[
           h('button',{class:'btn-g',style:{padding:'10px 20px'},onClick(){editTestimoni=null;setTab('testimoni');}},'Batal'),
@@ -2645,12 +2726,18 @@ function renderFounder(){
         h('h4',{style:{fontWeight:700,marginBottom:'16px',color:'#888'}},'Logo'),
         logoPrev,
         h('label',{class:'lbl'},'Upload Logo'),
-        h('input',{type:'file',accept:'image/*',style:{background:'none',border:'none',color:'#555',padding:'4px 0',marginBottom:'8px'},onChange(e){
-          const file=e.target.files[0];if(!file)return;
-          const reader=new FileReader();
-          reader.onload=ev=>{cfg.logo=ev.target.result;buildLogoPreview();};
-          reader.readAsDataURL(file);
-        }}),
+        (() => {
+          const st=document.createElement('div');st.style.cssText='color:#888;font-size:11px;margin:4px 0;';
+          const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+          inp.style.cssText='background:none;border:none;color:#555;padding:4px 0;margin-bottom:8px;';
+          inp.addEventListener('change',async(e)=>{
+            const file=e.target.files[0];if(!file)return;
+            st.textContent='⏳ Mengupload logo...';
+            try{cfg.logo=await uploadToImgbb(file);buildLogoPreview();st.textContent='✅ Logo terupload!';}
+            catch(err){st.textContent='❌ Gagal: '+err.message;}
+          });
+          const wrap=document.createElement('div');wrap.appendChild(inp);wrap.appendChild(st);return wrap;
+        })(),
         h('label',{class:'lbl',style:{marginTop:'4px'}},'Atau URL Logo'),
         (()=>{const inp=h('input',{type:'text',placeholder:'https://...'});inp.value=cfg.logo&&!cfg.logo.startsWith('data:')?cfg.logo:'';inp.addEventListener('input',e=>{cfg.logo=e.target.value;buildLogoPreview();});return inp;})(),
         h('button',{class:'btn-red',style:{marginTop:'10px',fontSize:'11px'},onClick(){cfg.logo='';buildLogoPreview();}},'Hapus Logo'),
@@ -2661,12 +2748,18 @@ function renderFounder(){
         bannerPrev,
         h('p',{style:{color:'#444',fontSize:'12px',marginBottom:'8px'}},'Gambar banner besar yang tampil di halaman beranda di belakang logo/nama'),
         h('label',{class:'lbl'},'Upload Banner'),
-        h('input',{type:'file',accept:'image/*',style:{background:'none',border:'none',color:'#555',padding:'4px 0',marginBottom:'8px'},onChange(e){
-          const file=e.target.files[0];if(!file)return;
-          const reader=new FileReader();
-          reader.onload=ev=>{cfg.heroBanner=ev.target.result;buildBannerPreview();};
-          reader.readAsDataURL(file);
-        }}),
+        (() => {
+          const st=document.createElement('div');st.style.cssText='color:#888;font-size:11px;margin:4px 0;';
+          const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
+          inp.style.cssText='background:none;border:none;color:#555;padding:4px 0;margin-bottom:8px;';
+          inp.addEventListener('change',async(e)=>{
+            const file=e.target.files[0];if(!file)return;
+            st.textContent='⏳ Mengupload banner...';
+            try{cfg.heroBanner=await uploadToImgbb(file);buildBannerPreview();st.textContent='✅ Banner terupload!';}
+            catch(err){st.textContent='❌ Gagal: '+err.message;}
+          });
+          const wrap=document.createElement('div');wrap.appendChild(inp);wrap.appendChild(st);return wrap;
+        })(),
         h('label',{class:'lbl',style:{marginTop:'4px'}},'Atau URL Banner'),
         (()=>{const inp=h('input',{type:'text',placeholder:'https://...'});inp.value=cfg.heroBanner&&!cfg.heroBanner.startsWith('data:')?cfg.heroBanner:'';inp.addEventListener('input',e=>{cfg.heroBanner=e.target.value;buildBannerPreview();});return inp;})(),
         h('button',{class:'btn-red',style:{marginTop:'10px',fontSize:'11px'},onClick(){cfg.heroBanner='';buildBannerPreview();}},'Hapus Banner'),
