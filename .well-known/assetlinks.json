@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.masan_develope.twa",
+        "sha256_cert_fingerprints": ["61:B3:3F:E1:FF:3C:78:E8:FC:E9:51:CA:63:05:13:26:58:10:5D:BF:5D:DE:C7:E5:6E:67:F1:32:52:AF:E5:BD"]
+      }
+    }]
