@@ -106,8 +106,78 @@ const JSONBIN_API = 'https://api.jsonbin.io/v3';
 let _binId = '6a61d35bda38895dfe834cbb';
 
 // ════════════════════════════════════════
-// IMGBB CONFIG — upload foto ke imgbb.com
+// GITHUB FILE STORAGE
 // ════════════════════════════════════════
+const GITHUB_TOKEN = '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';
+const GITHUB_REPO  = 'masan-develope/ma-files';
+const GITHUB_API   = 'https://api.github.com';
+
+// Upload file ke GitHub repo, return download URL
+async function uploadToGithub(file, productId){
+  // Baca file sebagai base64
+  const b64 = await new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>res(e.target.result.split(',')[1]);
+    r.onerror=rej;
+    r.readAsDataURL(file);
+  });
+
+  // Path di repo — per produk, pakai productId + nama file asli
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path = `products/${productId}/${safeName}`;
+
+  // Cek apakah file sudah ada (untuk get SHA jika update)
+  let sha = null;
+  try{
+    const chk = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`,{
+      headers:{'Authorization':'Bearer '+GITHUB_TOKEN,'Accept':'application/vnd.github+json'}
+    });
+    if(chk.ok){const d=await chk.json();sha=d.sha;}
+  }catch(e){}
+
+  const body = {
+    message:`Upload file produk: ${file.name}`,
+    content: b64,
+  };
+  if(sha) body.sha = sha;
+
+  const res = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`,{
+    method:'PUT',
+    headers:{'Authorization':'Bearer '+GITHUB_TOKEN,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  if(!res.ok){const e=await res.json();throw new Error(e.message||'GitHub upload gagal');}
+  const data = await res.json();
+  // Kembalikan path di repo (untuk generate download link nanti)
+  return {path, fileName: file.name, size: file.size};
+}
+
+// Generate temporary download URL via GitHub API (authenticated)
+async function getGithubDownloadUrl(path){
+  const res = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`,{
+    headers:{'Authorization':'Bearer '+GITHUB_TOKEN,'Accept':'application/vnd.github+json'}
+  });
+  if(!res.ok) throw new Error('File tidak ditemukan di server');
+  const data = await res.json();
+  // download_url dari GitHub = direct link dengan auth sudah embed untuk private repo
+  return data.download_url;
+}
+
+// Hapus file dari GitHub repo
+async function deleteFromGithub(path){
+  try{
+    const chk = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`,{
+      headers:{'Authorization':'Bearer '+GITHUB_TOKEN,'Accept':'application/vnd.github+json'}
+    });
+    if(!chk.ok) return;
+    const d = await chk.json();
+    await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}`,{
+      method:'DELETE',
+      headers:{'Authorization':'Bearer '+GITHUB_TOKEN,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+      body: JSON.stringify({message:'Hapus file produk',sha:d.sha}),
+    });
+  }catch(e){console.warn('deleteFromGithub gagal:',e);}
+}
 const IMGBB_KEY = 'ea0cc6165042587bc63a5614caa708a2';
 
 // Upload 1 file ke imgbb, return URL string
@@ -1538,21 +1608,28 @@ function renderCustomer(user){
             h('h2',{style:{fontSize:'22px',fontWeight:800,marginBottom:'8px',letterSpacing:'-0.5px'}},p.name),
             h('p',{style:{color:'var(--text2)',fontSize:'14px',lineHeight:1.7,marginBottom:'16px'}},p.detail||p.desc),
             // Tombol download file — hanya jika order done
-            p.fileData && myDoneOrder ? h('div',{style:{background:'#0a1a0a',border:'1px solid #1a3a1a',borderRadius:'12px',padding:'14px 16px',marginBottom:'16px',display:'flex',alignItems:'center',gap:'12px'}},[
+            p.fileRef && myDoneOrder ? h('div',{style:{background:'#0a1a0a',border:'1px solid #1a3a1a',borderRadius:'12px',padding:'14px 16px',marginBottom:'16px',display:'flex',alignItems:'center',gap:'12px'}},[
               h('span',{style:{fontSize:'24px'}},'📥'),
               h('div',{style:{flex:1}},[
                 h('div',{style:{fontWeight:700,fontSize:'13px',color:'#44ff44'}},'File Siap Didownload'),
                 h('div',{style:{color:'#555',fontSize:'11px'}},p.fileName||'file'),
               ]),
-              h('button',{style:{background:'#44ff44',border:'none',color:'#000',borderRadius:'8px',padding:'8px 16px',fontWeight:700,fontSize:'13px',cursor:'pointer'},onClick(){
-                // Download dengan token — token = orderId hashed sederhana
-                const token=btoa(myDoneOrder.id+'|'+user.id+'|'+p.id);
-                const a=document.createElement('a');a.href=p.fileData;a.download=p.fileName||'file';
-                // Simpan token ke file metadata (proteksi sederhana)
-                a.click();
-                showToast('Download dimulai! ✅');
-              }},'Download'),
-            ]) : p.fileData && !myDoneOrder ? h('div',{style:{background:'#1a1000',border:'1px solid #332200',borderRadius:'12px',padding:'14px 16px',marginBottom:'16px',display:'flex',alignItems:'center',gap:'12px'}},[
+              (() => {
+                const btn=document.createElement('button');
+                btn.textContent='Download';
+                btn.style.cssText='background:#44ff44;border:none;color:#000;border-radius:8px;padding:8px 16px;font-weight:700;font-size:13px;cursor:pointer;';
+                btn.onclick=async()=>{
+                  btn.textContent='⏳...';btn.disabled=true;
+                  try{
+                    const url=await getGithubDownloadUrl(p.fileRef.path);
+                    const a=document.createElement('a');a.href=url;a.download=p.fileName||'file';a.target='_blank';a.click();
+                    showToast('Download dimulai! ✅');
+                  }catch(err){showToast('Gagal download: '+err.message,'err');}
+                  btn.textContent='Download';btn.disabled=false;
+                };
+                return btn;
+              })(),
+            ]) : (p.fileRef||p.fileData) && !myDoneOrder ? h('div',{style:{background:'#1a1000',border:'1px solid #332200',borderRadius:'12px',padding:'14px 16px',marginBottom:'16px',display:'flex',alignItems:'center',gap:'12px'}},[
               h('span',{style:{fontSize:'24px'}},'🔒'),
               h('div',{style:{flex:1}},[
                 h('div',{style:{fontWeight:700,fontSize:'13px',color:'#888'}},'File Terkunci'),
@@ -2042,7 +2119,7 @@ function renderFounder(){
       const fields={};
       // State lokal — sudah berupa URL imgbb (bukan base64)
       let galleryImages=[...(editProduct?.gallery||[])];
-      let fileData=editProduct?.fileData||null;
+      let fileData=editProduct?.fileRef||null; // {path, fileName, size} dari GitHub
       let fileName=editProduct?.fileName||'';
       let thumbData=editProduct?.thumb||''; // URL imgbb atau base64 lama
 
@@ -2130,18 +2207,37 @@ function renderFounder(){
             return wrap;
           })(),
         ]),
-        // File download — tetap base64 (file bukan gambar)
+        // File download — upload ke GitHub
         h('div',{class:'form-row'},[
           h('label',{class:'lbl'},'File Download (terkunci sampai order done)'),
-          h('input',{type:'file',style:{background:'none',border:'none',color:'#555',padding:'4px 0'},onChange:async(e)=>{
-            const f=e.target.files[0];if(!f)return;
-            if(f.size>4*1024*1024){showToast('File maks 4MB (limit JSONBin).','err');return;}
-            const reader=new FileReader();
-            reader.onload=ev=>{fileData=ev.target.result;fileName=f.name;fileStatus.textContent='File: '+fileName+' ('+Math.round(f.size/1024)+'KB)';};
-            reader.readAsDataURL(f);
-          }}),
-          fileStatus,
-          h('p',{style:{color:'#333',fontSize:'11px',marginTop:'4px'}},'⚠️ Maks 4MB. Customer hanya bisa download jika ordernya sudah "done".'),
+          (() => {
+            const st=document.createElement('div');
+            st.style.cssText='color:#25d366;font-size:12px;margin-top:6px;';
+            st.textContent=fileName?'📎 '+fileName:'Belum ada file';
+            const inp=document.createElement('input');
+            inp.type='file';
+            inp.style.cssText='background:none;border:none;color:#555;padding:4px 0;';
+            inp.addEventListener('change',async(e)=>{
+              const f=e.target.files[0];if(!f)return;
+              st.textContent='⏳ Mengupload file ke GitHub...';st.style.color='#888';
+              // Pakai tempId jika produk baru (belum punya id)
+              const pid=editProduct?.id||('new_'+uid());
+              try{
+                const result=await uploadToGithub(f, pid);
+                fileData=result; // simpan {path, fileName, size}
+                fileName=result.fileName;
+                st.textContent='✅ '+fileName+' ('+Math.round(result.size/1024)+'KB) — tersimpan di GitHub';
+                st.style.color='#25d366';
+              }catch(err){
+                st.textContent='❌ Upload gagal: '+err.message;st.style.color='#ff4444';
+              }
+              inp.value='';
+            });
+            const wrap=document.createElement('div');
+            wrap.appendChild(inp);wrap.appendChild(st);
+            return wrap;
+          })(),
+          h('p',{style:{color:'#333',fontSize:'11px',marginTop:'4px'}},'⚠️ Customer hanya bisa download jika ordernya sudah "done".'),
         ]),
         h('div',{style:{display:'flex',gap:'10px',marginTop:'8px'}},[
           h('button',{class:'btn-g',style:{padding:'10px 20px'},onClick(){editProduct=null;setTab('products');}},'Batal'),
@@ -2151,8 +2247,10 @@ function renderFounder(){
             if(!p.name){showToast('Nama produk wajib diisi.','err');return;}
             p.thumb=thumbData;
             p.gallery=galleryImages;
-            if(fileData){p.fileData=fileData;p.fileName=fileName;}
-            else if(editProduct?.fileData){p.fileData=editProduct.fileData;p.fileName=editProduct.fileName;}
+            // fileData sekarang {path, fileName, size} dari GitHub
+            if(fileData&&fileData.path){p.fileRef=fileData;p.fileName=fileData.fileName;}
+            else if(editProduct?.fileRef){p.fileRef=editProduct.fileRef;p.fileName=editProduct.fileName;}
+            else if(editProduct?.fileData){p.fileRef=null;p.fileName=editProduct.fileName;} // migrasi dari base64 lama
             if(isEdit)p.id=editProduct.id;
             let prods=DB.get('products')||[];
             if(p.id&&prods.find(x=>x.id===p.id)) prods=prods.map(x=>x.id===p.id?{...x,...p}:x);
