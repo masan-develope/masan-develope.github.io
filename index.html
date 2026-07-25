@@ -1496,6 +1496,10 @@ function buildChatUI(chatId, myRole, onClose){
 // ════════════════════════════════════════
 // CUSTOMER APP
 // ════════════════════════════════════════
+let _pwaPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_pwaPrompt=e;const btn=document.getElementById('pwa-install-btn');if(btn)btn.style.display='flex';});
+window.addEventListener('appinstalled',()=>{_pwaPrompt=null;const btn=document.getElementById('pwa-install-btn');if(btn)btn.style.display='none';});
+
 function renderCustomer(user){
   const s=DB.get('settings')||{};
   const products=DB.get('products')||[];
@@ -1958,6 +1962,11 @@ function renderCustomer(user){
       ]),
       h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},[
         h('span',{style:{color:'var(--text3)',fontSize:'12px'}},'Hi, '+strip(user.name)),
+        h('button',{id:'pwa-install-btn',title:'Install App',style:{background:'#fff',border:'none',color:'#000',fontSize:'11px',padding:'5px 10px',borderRadius:'8px',fontWeight:700,display:'none',alignItems:'center',gap:'4px'},onClick(){
+          if(!_pwaPrompt)return;
+          _pwaPrompt.prompt();
+          _pwaPrompt.userChoice.then(()=>{_pwaPrompt=null;const btn=document.getElementById('pwa-install-btn');if(btn)btn.style.display='none';});
+        }},'⬇️ Install'),
         h('button',{title:'Salin link halaman ini',style:{background:'none',border:'1px solid var(--border2)',color:'var(--text3)',fontSize:'11px',padding:'5px 10px',borderRadius:'8px'},onClick(){
           const url=location.href;
           navigator.clipboard.writeText(url).then(()=>showToast('Link disalin! 🔗')).catch(()=>{prompt('Salin link ini:',url);});
