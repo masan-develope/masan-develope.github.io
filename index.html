@@ -2,8 +2,17 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>MasAn Development</title>
+<!-- PWA Meta Tags -->
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MasAn Dev">
+<meta name="description" content="MasAn Development — Roblox Game Developer">
+<link rel="manifest" id="pwa-manifest">
+<!-- Apple touch icon (inline, tidak butuh file terpisah) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23000'/><text y='70' x='50' text-anchor='middle' font-size='60' font-family='Arial' font-weight='bold' fill='white'>MA</text></svg>">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;700&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -576,29 +585,103 @@ function showPushNotif(title,body,tabTarget,chatId,senderName){
 (()=>{const s=document.createElement('style');s.textContent='@keyframes slideDownNotifOut{to{opacity:0;transform:translateX(-50%) translateY(-120%)}}';document.head.appendChild(s);})();
 
 // ════════════════════════════════════════
-// SERVICE WORKER — untuk push notif saat web tidak aktif
+// PWA — Manifest + Service Worker + Install
 // ════════════════════════════════════════
-(function registerSW(){
-  if(!('serviceWorker' in navigator))return;
-  // Inline SW sebagai blob
+(function initPWA(){
+  // Buat manifest dinamis sebagai blob URL
+  const manifest={
+    name:'MasAn Development',
+    short_name:'MasAn Dev',
+    description:'Roblox Game Developer — MA Studio System',
+    start_url:'./',
+    display:'standalone',
+    background_color:'#000000',
+    theme_color:'#000000',
+    orientation:'any',
+    icons:[
+      {src:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%23000'/><text y='360' x='256' text-anchor='middle' font-size='300' font-family='Arial' font-weight='bold' fill='white'>MA</text></svg>",sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'},
+    ],
+    shortcuts:[
+      {name:'Chat',url:'./#chat',description:'Buka chat'},
+      {name:'Produk',url:'./#products',description:'Lihat produk'},
+    ],
+  };
+  const manifestBlob=new Blob([JSON.stringify(manifest)],{type:'application/json'});
+  const manifestUrl=URL.createObjectURL(manifestBlob);
+  document.getElementById('pwa-manifest').href=manifestUrl;
+
+  // Service Worker — handle push notif dan cache
+  if(!('serviceWorker' in navigator)) return;
   const swCode=`
-self.addEventListener('push',function(e){
-  const data=e.data?e.data.json():{title:'MasAn Dev',body:'Ada notifikasi baru'};
-  self.registration.showNotification(data.title,{body:data.body,icon:'/favicon.ico',badge:'/favicon.ico',tag:data.tag||'masandev',renotify:true});
+const CACHE='masandev-v1';
+const URLS_TO_CACHE=[]; // single file app — tidak perlu cache assets
+
+self.addEventListener('install',e=>{self.skipWaiting();});
+self.addEventListener('activate',e=>{self.clients.claim();});
+
+// Fetch — network first, fallback cache
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  e.respondWith(
+    fetch(e.request).catch(()=>caches.match(e.request))
+  );
 });
-self.addEventListener('notificationclick',function(e){
-  e.notification.close();
-  e.waitUntil(clients.matchAll({type:'window'}).then(cls=>{
-    for(const c of cls){if(c.url&&'focus' in c)return c.focus();}
-    if(clients.openWindow)return clients.openWindow('/');
+
+// Push notification
+self.addEventListener('push',e=>{
+  const data=e.data?e.data.json():{title:'MasAn Dev',body:'Ada notifikasi baru!'};
+  e.waitUntil(self.registration.showNotification(data.title,{
+    body:data.body,
+    icon:data.icon||'',
+    badge:data.badge||'',
+    tag:data.tag||'masandev',
+    renotify:true,
+    vibrate:[200,100,200],
+    data:{url:data.url||'/'},
   }));
 });
-self.addEventListener('install',()=>self.skipWaiting());
-self.addEventListener('activate',()=>self.clients.claim());
+
+self.addEventListener('notificationclick',e=>{
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(cls=>{
+    for(const c of cls){if('focus' in c)return c.focus();}
+    if(clients.openWindow)return clients.openWindow(e.notification.data?.url||'/');
+  }));
+});
 `;
-  const blob=new Blob([swCode],{type:'text/javascript'});
-  const swUrl=URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).catch(()=>{});
+  const swBlob=new Blob([swCode],{type:'text/javascript'});
+  const swUrl=URL.createObjectURL(swBlob);
+
+  navigator.serviceWorker.register(swUrl).then(reg=>{
+    window._swReg=reg;
+    console.log('[PWA] SW registered');
+
+    // Request permission notif
+    if('Notification' in window && Notification.permission==='default'){
+      // Delay sedikit supaya tidak terlalu dini
+      setTimeout(()=>{
+        Notification.requestPermission().then(p=>{
+          if(p==='granted') console.log('[PWA] Notif permission granted');
+        });
+      }, 3000);
+    }
+  }).catch(e=>console.warn('[PWA] SW failed:',e));
+
+  // Install prompt — simpan untuk tombol "Install App"
+  window.addEventListener('beforeinstallprompt',e=>{
+    e.preventDefault();
+    window._installPrompt=e;
+    // Tampilkan tombol install di UI jika ada
+    const btn=document.getElementById('pwa-install-btn');
+    if(btn) btn.style.display='flex';
+  });
+
+  window.addEventListener('appinstalled',()=>{
+    window._installPrompt=null;
+    const btn=document.getElementById('pwa-install-btn');
+    if(btn) btn.style.display='none';
+    console.log('[PWA] App installed!');
+  });
 })();
 
 function updateFounderBadges(data){
@@ -1360,11 +1443,14 @@ function getOrCreateChat(userId,userName,userEmail){
   return null;
 }
 
-function sendChatMessage(chatId,text,role){
+function sendChatMessage(chatId,text,role,media){
   const chats=DB.get('chats')||[];
   const idx=chats.findIndex(c=>c.id===chatId);
   if(idx===-1)return;
-  chats[idx].messages.push({id:uid(),text:strip(text),role,time:now()});
+  const msg={id:uid(),role,time:now()};
+  if(media){msg.mediaType=media.type;msg.mediaUrl=media.url;msg.text=text||'';}
+  else{msg.text=strip(text);}
+  chats[idx].messages.push(msg);
   chats[idx].lastActivity=now();
   DB.set('chats',chats);
 }
@@ -1389,7 +1475,41 @@ function buildChatUI(chatId, myRole, onClose){
 
   const msgsEl=h('div',{style:{flex:1,overflowY:'auto',padding:'16px',display:'flex',flexDirection:'column',gap:'0px',minHeight:'0'}});
   const inputEl=h('input',{type:'text',placeholder:'Ketik pesan...',style:{flex:1}});
-  const sendBtn=h('button',{class:'btn-w',style:{padding:'10px 18px',flexShrink:0}}, '➤');
+  const sendBtn=h('button',{class:'btn-w',style:{padding:'10px 18px',flexShrink:0}},'➤');
+
+  // Tombol media
+  const mediaBtn=document.createElement('button');
+  mediaBtn.innerHTML='📎';
+  mediaBtn.style.cssText='background:none;border:1px solid #333;color:#888;border-radius:8px;padding:8px 12px;font-size:16px;cursor:pointer;flex-shrink:0;';
+  const mediaInput=document.createElement('input');
+  mediaInput.type='file';mediaInput.accept='image/*,video/*';mediaInput.style.display='none';
+  mediaInput.addEventListener('change',async(e)=>{
+    const file=e.target.files[0];if(!file)return;
+    const isVideo=file.type.startsWith('video/');
+    const isImage=file.type.startsWith('image/');
+    if(!isVideo&&!isImage){showToast('Hanya gambar atau video','err');return;}
+    mediaBtn.innerHTML='⏳';mediaBtn.disabled=true;
+    try{
+      let url;
+      if(isImage){
+        url=await uploadToImgbb(file);
+      } else {
+        // Video — upload ke GitHub
+        if(!getGithubToken()){showToast('Set GitHub token dulu di Site Tools','err');mediaBtn.innerHTML='📎';mediaBtn.disabled=false;return;}
+        const result=await uploadToGithub(file,'chat_media');
+        url=await getGithubDownloadUrl(result.path);
+      }
+      _lastSentAt=Date.now();
+      sendChatMessage(chatId,'',myRole,{type:isImage?'image':'video',url});
+      const curMsgs=(DB.get('chats')||[]).find(c=>c.id===chatId)?.messages||[];
+      if(myRole==='customer') localStorage.setItem('ma_cust_read_'+chatId,String(curMsgs.length));
+      else localStorage.setItem('ma_chat_read_'+chatId,String(curMsgs.length));
+      renderMsgs();
+    }catch(err){showToast('Upload gagal: '+err.message,'err');}
+    mediaBtn.innerHTML='📎';mediaBtn.disabled=false;
+    mediaInput.value='';
+  });
+  mediaBtn.addEventListener('click',()=>mediaInput.click());
 
   function renderMsgs(newData){
     const prevScroll=msgsEl.scrollTop;
@@ -1402,13 +1522,72 @@ function buildChatUI(chatId, myRole, onClose){
 
     chat.messages.forEach(msg=>{
       const isMe=msg.role===myRole;
-      const bubble=h('div',{class:'chat-bubble '+(isMe?'me':'them')},msg.text);
-      const time=h('div',{class:'chat-time '+(isMe?'me':'')},msg.time);
-      msgsEl.appendChild(bubble);
-      msgsEl.appendChild(time);
+      const wrap=document.createElement('div');
+      wrap.style.cssText='display:flex;flex-direction:column;align-items:'+(isMe?'flex-end':'flex-start')+';margin-bottom:4px;';
+
+      if(msg.mediaType==='image'&&msg.mediaUrl){
+        // Gambar — pakai img dengan crossorigin anonymous untuk fix CORS di desktop
+        const imgWrap=document.createElement('div');
+        imgWrap.style.cssText='max-width:220px;border-radius:12px;overflow:hidden;cursor:pointer;background:#111;';
+        const img=document.createElement('img');
+        img.style.cssText='width:100%;display:block;border-radius:12px;';
+        img.crossOrigin='anonymous';
+        // Tambah cache-buster hanya jika bukan imgbb (imgbb sudah CORS-ready)
+        img.src=msg.mediaUrl;
+        img.onerror=()=>{
+          // Fallback: tampilkan link kalau gambar gagal load
+          imgWrap.innerHTML='';
+          const lnk=document.createElement('a');
+          lnk.href=msg.mediaUrl;lnk.target='_blank';lnk.textContent='🖼️ Lihat Gambar';
+          lnk.style.cssText='color:#4a9eff;font-size:13px;padding:10px;display:block;';
+          imgWrap.appendChild(lnk);
+        };
+        img.onclick=()=>{
+          const lb=document.createElement('div');
+          lb.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;';
+          const bi=document.createElement('img');bi.src=msg.mediaUrl;bi.style.cssText='max-width:95vw;max-height:85vh;object-fit:contain;border-radius:8px;';
+          const cl=document.createElement('button');cl.textContent='✕ Tutup';cl.style.cssText='margin-top:14px;background:none;border:1px solid #333;color:#888;padding:8px 20px;border-radius:8px;cursor:pointer;';
+          cl.onclick=()=>lb.remove();
+          lb.appendChild(bi);lb.appendChild(cl);lb.onclick=(e)=>{if(e.target===lb)lb.remove();};
+          document.body.appendChild(lb);
+        };
+        imgWrap.appendChild(img);
+        const bubble=document.createElement('div');
+        bubble.className='chat-bubble '+(isMe?'me':'them');
+        bubble.style.padding='4px';bubble.style.background='transparent';
+        bubble.appendChild(imgWrap);
+        wrap.appendChild(bubble);
+      } else if(msg.mediaType==='video'&&msg.mediaUrl){
+        const bubble=document.createElement('div');
+        bubble.className='chat-bubble '+(isMe?'me':'them');
+        bubble.style.padding='4px';
+        const vid=document.createElement('video');
+        vid.src=msg.mediaUrl;vid.controls=true;
+        vid.style.cssText='max-width:220px;border-radius:10px;display:block;';
+        vid.onerror=()=>{
+          bubble.innerHTML='';
+          const lnk=document.createElement('a');
+          lnk.href=msg.mediaUrl;lnk.target='_blank';lnk.textContent='🎥 Lihat Video';
+          lnk.style.cssText='color:#4a9eff;font-size:13px;';
+          bubble.appendChild(lnk);
+        };
+        bubble.appendChild(vid);
+        wrap.appendChild(bubble);
+      } else {
+        const bubble=document.createElement('div');
+        bubble.className='chat-bubble '+(isMe?'me':'them');
+        bubble.textContent=msg.text;
+        wrap.appendChild(bubble);
+      }
+
+      const time=document.createElement('div');
+      time.className='chat-time '+(isMe?'me':'');
+      time.textContent=msg.time;
+      wrap.appendChild(time);
+      msgsEl.appendChild(wrap);
     });
 
-    // Typing indicator — tampilkan jika pihak lain sedang mengetik
+    // Typing indicator
     const otherRole=myRole==='founder'?'customer':'founder';
     if(chat.typing===otherRole&&chat.typingExp&&Date.now()<chat.typingExp){
       const typingEl=document.createElement('div');
@@ -1485,7 +1664,15 @@ function buildChatUI(chatId, myRole, onClose){
 
   const wrap=h('div',{style:{display:'flex',flexDirection:'column',height:'460px'}},[
     msgsEl,
-    h('div',{style:{padding:'12px 16px',borderTop:'1px solid var(--border)',display:'flex',gap:'8px',alignItems:'center'}},[inputEl,sendBtn]),
+    (() => {
+      const inputArea=h('div',{style:{padding:'12px 16px',borderTop:'1px solid var(--border)',display:'flex',gap:'8px',alignItems:'center'}},[inputEl,sendBtn]);
+      inputArea.appendChild(mediaBtn);
+      inputArea.appendChild(mediaInput);
+      // Reorder: mediaBtn dulu sebelum input
+      inputArea.insertBefore(mediaBtn, inputEl);
+      inputArea.insertBefore(mediaInput, inputEl);
+      return inputArea;
+    })(),
   ]);
 
   renderMsgs();
@@ -1958,6 +2145,11 @@ function renderCustomer(user){
       ]),
       h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},[
         h('span',{style:{color:'var(--text3)',fontSize:'12px'}},'Hi, '+strip(user.name)),
+        // Tombol Install App — muncul hanya kalau PWA bisa diinstall
+        h('button',{id:'pwa-install-btn',title:'Install sebagai App',style:{display:'none',background:'none',border:'1px solid #25d366',color:'#25d366',fontSize:'11px',padding:'5px 10px',borderRadius:'8px',alignItems:'center',gap:'4px'},onClick(){
+          if(window._installPrompt){window._installPrompt.prompt();window._installPrompt.userChoice.then(r=>{if(r.outcome==='accepted')showToast('App diinstall! ✅');});}
+          else{showToast('Buka di browser lalu pilih "Tambahkan ke Layar Utama"');}
+        }},'📲 Install App'),
         h('button',{title:'Salin link halaman ini',style:{background:'none',border:'1px solid var(--border2)',color:'var(--text3)',fontSize:'11px',padding:'5px 10px',borderRadius:'8px'},onClick(){
           const url=location.href;
           navigator.clipboard.writeText(url).then(()=>showToast('Link disalin! 🔗')).catch(()=>{prompt('Salin link ini:',url);});
