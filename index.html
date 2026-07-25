@@ -580,25 +580,7 @@ function showPushNotif(title,body,tabTarget,chatId,senderName){
 // ════════════════════════════════════════
 (function registerSW(){
   if(!('serviceWorker' in navigator))return;
-  // Inline SW sebagai blob
-  const swCode=`
-self.addEventListener('push',function(e){
-  const data=e.data?e.data.json():{title:'MasAn Dev',body:'Ada notifikasi baru'};
-  self.registration.showNotification(data.title,{body:data.body,icon:'/favicon.ico',badge:'/favicon.ico',tag:data.tag||'masandev',renotify:true});
-});
-self.addEventListener('notificationclick',function(e){
-  e.notification.close();
-  e.waitUntil(clients.matchAll({type:'window'}).then(cls=>{
-    for(const c of cls){if(c.url&&'focus' in c)return c.focus();}
-    if(clients.openWindow)return clients.openWindow('/');
-  }));
-});
-self.addEventListener('install',()=>self.skipWaiting());
-self.addEventListener('activate',()=>self.clients.claim());
-`;
-  const blob=new Blob([swCode],{type:'text/javascript'});
-  const swUrl=URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).catch(()=>{});
+  navigator.serviceWorker.register('/sw.js').catch(()=>{});
 })();
 
 function updateFounderBadges(data){
