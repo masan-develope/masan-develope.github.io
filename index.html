@@ -165,7 +165,7 @@ const DB = {
     _cache[k]=v;
     _localSet(k,v);
     clearTimeout(_saveTimer);
-    if(k==='orders'||k==='users'||k==='testimoni'){DB._push();}
+    if(k==='orders'||k==='users'||k==='testimoni'||k==='products'){DB._push();}
     // chats: debounce 300ms — cepat tapi tetap batch typing + message sekaligus
     else if(k==='chats'){_saveTimer=setTimeout(()=>DB._push(),300);}
     else{_saveTimer=setTimeout(()=>DB._push(),800);}
@@ -2092,7 +2092,12 @@ function renderFounder(){
             let prods=DB.get('products')||[];
             if(p.id&&prods.find(x=>x.id===p.id)) prods=prods.map(x=>x.id===p.id?{...x,...p}:x);
             else prods=[...prods,{...p,id:uid()}];
-            DB.set('products',prods);editProduct=null;showToast('Produk disimpan! ✅');setTab('products');
+            // Simpan ke cache & localStorage dulu, lalu push ke JSONBin
+            _cache.products=prods;
+            _localSet('products',prods);
+            showToast('Menyimpan... ⏳');
+            DB._push().then(()=>showToast('Produk disimpan! ✅')).catch(()=>showToast('Gagal simpan ke server','err'));
+            editProduct=null;setTab('products');
           }},'Simpan'),
         ]),
       ]);
@@ -2462,7 +2467,7 @@ function renderFounder(){
 
   function buildFounderTestimoni(){
     function toBase64(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsDataURL(file);});}
-    let editTestimoni=null; // null = list mode, {} = form mode
+    // editTestimoni pakai variabel dari scope founder (baris let editTestimoni=null di atas)
 
     function renderForm(){
       const isEdit=!!(editTestimoni&&editTestimoni.id);
