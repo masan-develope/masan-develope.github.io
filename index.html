@@ -2,17 +2,8 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MasAn Development</title>
-<!-- PWA Meta Tags -->
-<meta name="theme-color" content="#000000">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="MasAn Dev">
-<meta name="description" content="MasAn Development - Roblox Game Developer">
-<link rel="manifest" href="./manifest.json" id="pwa-manifest">
-<!-- Apple touch icon (inline, tidak butuh file terpisah) -->
-<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23000'/><text y='70' x='50' text-anchor='middle' font-size='60' font-family='Arial' font-weight='bold' fill='white'>MA</text></svg>">
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&family=Syne:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;700&display=swap');
   *{margin:0;padding:0;box-sizing:border-box;}
@@ -59,7 +50,7 @@
   .seg{display:flex;background:#111;border-radius:10px;overflow:hidden;margin-bottom:20px;}
   .seg button{flex:1;padding:10px;background:transparent;color:#555;font-weight:700;font-size:13px;border:none;transition:all .2s;cursor:pointer;}
   .seg button.on{background:var(--primary);color:var(--primary-text);}
-  /* Hero Banner - full bleed, no margin, no radius so it bleeds to edges */
+  /* Hero Banner — full bleed, no margin, no radius so it bleeds to edges */
   .hero-banner{position:relative;width:calc(100% + 40px);margin-left:-20px;margin-right:-20px;height:260px;overflow:hidden;margin-bottom:20px;background:#111;margin-top:-80px;}
   .hero-banner img{width:100%;height:100%;object-fit:cover;}
   .hero-banner-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.15) 0%,rgba(0,0,0,.75) 100%);display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding-bottom:28px;}
@@ -80,7 +71,7 @@
   /* Notification badge */
   .notif-badge{background:#ff4444;color:#fff;border-radius:10px;min-width:17px;height:17px;font-size:9px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;padding:0 4px;line-height:1;}
   .notif-badge-abs{position:absolute;top:-5px;right:-5px;}
-  /* Push notification - top center like Android/iOS */
+  /* Push notification — top center like Android/iOS */
   .push-notif{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:#1c1c1e;border:1px solid #2a2a2a;border-radius:16px;padding:14px 16px;width:calc(100% - 32px);max-width:380px;z-index:99999;box-shadow:0 8px 40px rgba(0,0,0,.95);animation:slideDownNotif .35s cubic-bezier(.22,.61,.36,1);cursor:pointer;display:flex;gap:12px;align-items:flex-start;}
   @keyframes slideDownNotif{from{opacity:0;transform:translateX(-50%) translateY(-100%)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
   .push-notif .pn-icon{width:36px;height:36px;border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
@@ -107,20 +98,20 @@
   </div>
 </div>
 <script>
-// ===========================================
+// ════════════════════════════════════════
 // JSONBIN CONFIG
-// ===========================================
+// ════════════════════════════════════════
 const JSONBIN_KEY = '$2a$10$ethU97gAs0GdY/DxDuFtouxohpvAKXPXy2ma/rYMecnell/ktmW2G';
 const JSONBIN_API = 'https://api.jsonbin.io/v3';
 let _binId = '6a61d35bda38895dfe834cbb';
 
-// ===========================================
+// ════════════════════════════════════════
 // GITHUB FILE STORAGE
-// ===========================================
+// ════════════════════════════════════════
 const GITHUB_REPO  = 'masan-develope/ma-files';
 const GITHUB_API   = 'https://api.github.com';
 
-// Token diambil dari settings JSONBin - tidak hardcode di source
+// Token diambil dari settings JSONBin — tidak hardcode di source
 function getGithubToken(){
   const s=_cache.settings||{};
   return s.githubToken||'';
@@ -136,7 +127,7 @@ async function uploadToGithub(file, productId){
     r.readAsDataURL(file);
   });
 
-  // Path di repo - per produk, pakai productId + nama file asli
+  // Path di repo — per produk, pakai productId + nama file asli
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
   const path = `products/${productId}/${safeName}`;
 
@@ -198,7 +189,7 @@ const IMGBB_KEY = 'ea0cc6165042587bc63a5614caa708a2';
 async function uploadToImgbb(fileOrBase64){
   const form = new FormData();
   if(typeof fileOrBase64 === 'string'){
-    // base64 string - strip header dulu
+    // base64 string — strip header dulu
     const b64 = fileOrBase64.includes(',') ? fileOrBase64.split(',')[1] : fileOrBase64;
     form.append('image', b64);
   } else {
@@ -250,9 +241,9 @@ const DEFAULT_DATA = {
   users:[],orders:[],appeals:[],chats:[],testimoni:[],
 };
 
-// ===========================================
+// ════════════════════════════════════════
 // STORAGE
-// ===========================================
+// ════════════════════════════════════════
 let _cache = {};
 let _saveTimer = null;
 let _pushInProgress = false;
@@ -287,7 +278,7 @@ const DB = {
     _localSet(k,v);
     clearTimeout(_saveTimer);
     if(k==='orders'||k==='users'||k==='testimoni'||k==='products'){DB._push();}
-    // chats: debounce 300ms - cepat tapi tetap batch typing + message sekaligus
+    // chats: debounce 300ms — cepat tapi tetap batch typing + message sekaligus
     else if(k==='chats'){_saveTimer=setTimeout(()=>DB._push(),300);}
     else{_saveTimer=setTimeout(()=>DB._push(),800);}
   },
@@ -349,9 +340,9 @@ const DB = {
 const uid=()=>Math.random().toString(36).slice(2,10);
 const now=()=>new Date().toLocaleString('id-ID');
 
-// ===========================================
+// ════════════════════════════════════════
 // REAL-TIME POLLING (untuk detect blokir, chat, order notif)
-// ===========================================
+// ════════════════════════════════════════
 let _pollTimer=null;
 let _lastOrderCount=0;
 let _lastChatCount=0;
@@ -374,23 +365,23 @@ function startPolling(session){
       if(!res.ok)return;
       const data=await res.json();
 
-      // Update cache silently - hanya jika data valid array/object
+      // Update cache silently — hanya jika data valid array/object
       if(Array.isArray(data.users)) _cache.users=data.users;
       if(Array.isArray(data.orders)) _cache.orders=data.orders;
       if(Array.isArray(data.appeals)) _cache.appeals=data.appeals;
       if(Array.isArray(data.testimoni)) _cache.testimoni=data.testimoni;
       // KRUSIAL: jangan timpa chats dari server jika user baru kirim pesan
-      // dalam 5 detik terakhir - cegah race condition pesan hilang
+      // dalam 5 detik terakhir — cegah race condition pesan hilang
       const msSinceSent=Date.now()-_lastSentAt;
       if(Array.isArray(data.chats)&&msSinceSent>5000){
         // Merge aman: ambil versi server, tapi protect pesan lokal yang belum terkirim
-        // Cek tiap chat - jika lokal punya lebih banyak pesan, pertahankan lokal
+        // Cek tiap chat — jika lokal punya lebih banyak pesan, pertahankan lokal
         const localChats=_cache.chats||[];
         const serverChats=data.chats;
         const merged=serverChats.map(sc=>{
           const lc=localChats.find(l=>l.id===sc.id);
           if(lc&&(lc.messages?.length||0)>(sc.messages?.length||0)){
-            // Lokal lebih banyak - kembalikan lokal dan trigger push
+            // Lokal lebih banyak — kembalikan lokal dan trigger push
             setTimeout(()=>DB._push(),100);
             return lc;
           }
@@ -403,7 +394,7 @@ function startPolling(session){
         _cache.chats=merged;
         _localSet('chats',merged);
       } else if(Array.isArray(data.chats)&&msSinceSent<=5000){
-        // Dalam window proteksi - skip overwrite, tapi catat kalau server lebih update
+        // Dalam window proteksi — skip overwrite, tapi catat kalau server lebih update
         // (user lain mungkin juga kirim pesan)
         const localChats=_cache.chats||[];
         const serverChats=data.chats;
@@ -428,7 +419,7 @@ function startPolling(session){
       ['users','orders','appeals','testimoni'].forEach(k=>{if(_cache[k]!==undefined)_localSet(k,_cache[k]);});
 
       if(!isFounder){
-        // Cek apakah user ini diblokir - hanya jika users berhasil diload
+        // Cek apakah user ini diblokir — hanya jika users berhasil diload
         const users=_cache.users||[];
         if(users.length>0){
           const me=users.find(u=>u.id===session.id);
@@ -439,7 +430,7 @@ function startPolling(session){
             return;
           }
         }
-        // Update badge chat customer real-time - cek semua chat order milik user
+        // Update badge chat customer real-time — cek semua chat order milik user
         if(Array.isArray(_cache.chats)){
           const myChats=_cache.chats.filter(c=>c.userId===session.id||c.userEmail===session.email);
           let totalUnread=0;
@@ -469,7 +460,7 @@ function startPolling(session){
         }
         _lastOrderCount=orders.length;
 
-        // Notifikasi chat baru - cek pesan terbaru dari customer
+        // Notifikasi chat baru — cek pesan terbaru dari customer
         const chats=Array.isArray(data.chats)?data.chats:[];
         let totalMsgs=chats.reduce((a,c)=>a+(c.messages?.length||0),0);
         if(totalMsgs>_lastChatCount&&_lastChatCount>=0&&_lastChatCount!==totalMsgs){
@@ -504,7 +495,7 @@ function stopPolling(){
   _pollTimer=null;
 }
 
-// Push notification - tampil seperti Android/iOS notification bar
+// Push notification — tampil seperti Android/iOS notification bar
 function showPushNotif(title,body,tabTarget,chatId,senderName){
   // Hapus notif lama dulu
   const old=document.getElementById('ma-push-notif');
@@ -584,96 +575,40 @@ function showPushNotif(title,body,tabTarget,chatId,senderName){
 // Tambah keyframe untuk slide out
 (()=>{const s=document.createElement('style');s.textContent='@keyframes slideDownNotifOut{to{opacity:0;transform:translateX(-50%) translateY(-120%)}}';document.head.appendChild(s);})();
 
-// ===========================================
-// PWA - Manifest + Service Worker + Install
-// ===========================================
-function initPWA(){
-  const s=_cache.settings||{};
-  const appName=s.siteName||'MasAn Development';
-  const appShort=s.appShortName||appName.split(' ')[0]||'MasAn';
-  const appDesc=s.tagline||'Roblox Game Developer';
-  const appIcon=s.appIcon||''; // URL imgbb dari settings
-
-  const defaultIconSvg="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='80' fill='%23000'/><text y='360' x='256' text-anchor='middle' font-size='280' font-family='Arial' font-weight='bold' fill='white'>"+encodeURIComponent(appShort.slice(0,2).toUpperCase())+"</text></svg>";
-
-  const icons=appIcon
-    ? [{src:appIcon,sizes:'512x512',type:'image/png',purpose:'any maskable'},{src:appIcon,sizes:'192x192',type:'image/png'}]
-    : [{src:defaultIconSvg,sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}];
-
-  const manifest={
-    name:appName,
-    short_name:appShort,
-    description:appDesc,
-    start_url:'./',
-    display:'standalone',
-    background_color:s.bgColor||'#000000',
-    theme_color:s.themeHex||'#000000',
-    orientation:'any',
-    icons,
-    shortcuts:[
-      {name:'Chat',url:'./#chat',description:'Buka chat'},
-      {name:'Produk',url:'./#products',description:'Lihat produk'},
-    ],
-  };
-
-  // Manifest sudah sebagai file statis manifest.json di repo
-  // Hanya update link jika belum mengarah ke file statis
-  const el=document.getElementById('pwa-manifest');
-  if(el&&!el.href.endsWith('manifest.json')) el.href='./manifest.json';
-
-  // Apple touch icon - update dinamis
-  let appleIcon=document.querySelector('link[rel="apple-touch-icon"]');
-  if(appIcon&&appleIcon) appleIcon.href=appIcon;
-
-  // Service Worker
-  if(!('serviceWorker' in navigator)) return;
-  const _swIcon=appIcon||'';
-  const _swName=appName||'MasAn Dev';
-  const swCode=[
-    "const CACHE='masandev-v2';",
-    "self.addEventListener('install',e=>{self.skipWaiting();});",
-    "self.addEventListener('activate',e=>{self.clients.claim();});",
-    "self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});",
-    "self.addEventListener('push',e=>{",
-    "  const d=e.data?e.data.json():{title:'"+_swName+"',body:'Ada notifikasi baru!'};",
-    "  e.waitUntil(self.registration.showNotification(d.title,{body:d.body,icon:d.icon||'"+_swIcon+"',tag:d.tag||'masandev',renotify:true,vibrate:[200,100,200],data:{url:d.url||'/'}}));",
-    "});",
-    "self.addEventListener('notificationclick',e=>{",
-    "  e.notification.close();",
-    "  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(cls=>{",
-    "    for(const c of cls){if('focus' in c)return c.focus();}",
-    "    if(clients.openWindow)return clients.openWindow(e.notification.data&&e.notification.data.url||'/');",
-    "  }));",
-    "});",
-  ].join('\n');
-  const swBlob=new Blob([swCode],{type:'text/javascript'});
-  navigator.serviceWorker.register(URL.createObjectURL(swBlob)).then(reg=>{
-    window._swReg=reg;
-    if('Notification' in window && Notification.permission==='default'){
-      setTimeout(()=>Notification.requestPermission(),3000);
-    }
-  }).catch(e=>console.warn('[PWA] SW failed:',e));
-
-  window.addEventListener('beforeinstallprompt',e=>{
-    e.preventDefault();window._installPrompt=e;
-    const btn=document.getElementById('pwa-install-btn');
-    if(btn) btn.style.display='flex';
-  });
-  window.addEventListener('appinstalled',()=>{
-    window._installPrompt=null;
-    const btn=document.getElementById('pwa-install-btn');
-    if(btn) btn.style.display='none';
-  });
-}
+// ════════════════════════════════════════
+// SERVICE WORKER — untuk push notif saat web tidak aktif
+// ════════════════════════════════════════
+(function registerSW(){
+  if(!('serviceWorker' in navigator))return;
+  // Inline SW sebagai blob
+  const swCode=`
+self.addEventListener('push',function(e){
+  const data=e.data?e.data.json():{title:'MasAn Dev',body:'Ada notifikasi baru'};
+  self.registration.showNotification(data.title,{body:data.body,icon:'/favicon.ico',badge:'/favicon.ico',tag:data.tag||'masandev',renotify:true});
+});
+self.addEventListener('notificationclick',function(e){
+  e.notification.close();
+  e.waitUntil(clients.matchAll({type:'window'}).then(cls=>{
+    for(const c of cls){if(c.url&&'focus' in c)return c.focus();}
+    if(clients.openWindow)return clients.openWindow('/');
+  }));
+});
+self.addEventListener('install',()=>self.skipWaiting());
+self.addEventListener('activate',()=>self.clients.claim());
+`;
+  const blob=new Blob([swCode],{type:'text/javascript'});
+  const swUrl=URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(()=>{});
+})();
 
 function updateFounderBadges(data){
-  // Orders badge - order baru sejak terakhir kali founder buka tab orders
+  // Orders badge — order baru sejak terakhir kali founder buka tab orders
   const allOrders=data.orders||[];
   const lastSeenOrders=parseInt(localStorage.getItem('ma_founder_orders_seen')||'0');
   const newOrderCount=allOrders.filter((_,i)=>i>=lastSeenOrders).length;
   _setBadge('ftab-orders', newOrderCount);
 
-  // Chat badge - total pesan customer yang belum dibaca (pakai localStorage tracking)
+  // Chat badge — total pesan customer yang belum dibaca (pakai localStorage tracking)
   const chats=data.chats||[];
   let totalUnread=0;
   chats.forEach(chat=>{
@@ -701,9 +636,9 @@ function _setBadge(tabId, count){
   }
 }
 
-// ===========================================
+// ════════════════════════════════════════
 // APPLY THEME
-// ===========================================
+// ════════════════════════════════════════
 function applyTheme(){
   const s=DB.get('settings')||{};
   const root=document.documentElement;
@@ -728,9 +663,9 @@ function applyTheme(){
   cssEl.textContent=s.customCSS||'';
 }
 
-// ===========================================
+// ════════════════════════════════════════
 // TOAST
-// ===========================================
+// ════════════════════════════════════════
 let toastTimer=null;
 function showToast(msg,type='ok'){
   let el=document.getElementById('toast');
@@ -740,9 +675,9 @@ function showToast(msg,type='ok'){
   toastTimer=setTimeout(()=>{if(el)el.style.display='none';},3000);
 }
 
-// ===========================================
+// ════════════════════════════════════════
 // RENDER HELPERS
-// ===========================================
+// ════════════════════════════════════════
 function h(tag,attrs={},children=[]){
   const el=document.createElement(tag);
   for(const[k,v] of Object.entries(attrs)){
@@ -764,9 +699,9 @@ function strip(str){if(typeof str!=='string')str=String(str||'');return str.repl
 function safeUrl(url){try{const u=new URL(url);return(u.protocol==='http:'||u.protocol==='https:')?url:'#';}catch{return'#';}}
 function safeText(el,str){el.textContent=strip(str);}
 
-// ===========================================
+// ════════════════════════════════════════
 // LOGO HELPER
-// ===========================================
+// ════════════════════════════════════════
 function logoEl(size=72,style={}){
   const s=DB.get('settings')||{};
   if(s.logo){
@@ -781,9 +716,9 @@ function logoEl(size=72,style={}){
   return div;
 }
 
-// ===========================================
-// CAPTCHA - Multi-layer (math + drag + pattern)
-// ===========================================
+// ════════════════════════════════════════
+// CAPTCHA — Multi-layer (math + drag + pattern)
+// ════════════════════════════════════════
 function captchaWidget(onVerify){
   // Random pilih tipe captcha
   const type=Math.floor(Math.random()*3);
@@ -907,9 +842,9 @@ function captchaPattern(onVerify){
   ]);
 }
 
-// ===========================================
-// AUTH SCREEN - UPGRADED
-// ===========================================
+// ════════════════════════════════════════
+// AUTH SCREEN — UPGRADED
+// ════════════════════════════════════════
 function renderAuth(){
   const s=DB.get('settings')||{};
 
@@ -918,7 +853,7 @@ function renderAuth(){
       h('div',{style:{fontSize:'56px',marginBottom:'20px'}},'🔧'),
       h('h2',{style:{fontSize:'24px',fontWeight:900,marginBottom:'10px'}},'Under Maintenance'),
       h('p',{style:{color:'var(--text2)',fontSize:'14px',maxWidth:'320px',lineHeight:1.7}},s.maintenanceMsg||'Sedang dalam maintenance.'),
-      // FOUNDER LOGIN - TERSEMBUNYI, tidak ada label "Founder Login"
+      // FOUNDER LOGIN — TERSEMBUNYI, tidak ada label "Founder Login"
       (() => {
         const wrap=h('div',{style:{marginTop:'40px',opacity:0,height:'1px',overflow:'hidden'}});
         let tapCount=0;
@@ -1123,7 +1058,7 @@ function renderAuth(){
     formWrap.appendChild(btn);
   }
 
-  // Google login - tampilan mirip Google account picker asli
+  // Google login — tampilan mirip Google account picker asli
   function simulateGoogleLogin(){
     const savedAccts=getSavedAccounts();
     // Warna avatar Google-style
@@ -1313,9 +1248,9 @@ function renderAuth(){
   buildForm();
 }
 
-// ===========================================
+// ════════════════════════════════════════
 // BLOCKED SCREEN
-// ===========================================
+// ════════════════════════════════════════
 function renderBlocked(user){
   let msgInp;
   function submitAppeal(){
@@ -1345,9 +1280,9 @@ function renderBlocked(user){
   ]));
 }
 
-// ===========================================
+// ════════════════════════════════════════
 // ORDER MODAL
-// ===========================================
+// ════════════════════════════════════════
 function showOrderModal(product,user,onClose){
   let step=1,msgInp;
   let bg;
@@ -1385,7 +1320,7 @@ function showOrderModal(product,user,onClose){
     h('div',{class:'modal'},[
       h('button',{style:{position:'absolute',top:'16px',right:'16px',background:'none',border:'none',color:'var(--text3)',fontSize:'20px'},onClick:onClose},'✕'),
       h('h3',{style:{fontWeight:800,fontSize:'18px',marginBottom:'4px'}},'Order Produk'),
-      h('p',{style:{color:'var(--text3)',fontSize:'13px',marginBottom:'20px'}},product.name+' - '+product.price),
+      h('p',{style:{color:'var(--text3)',fontSize:'13px',marginBottom:'20px'}},product.name+' — '+product.price),
       h('div',{id:'order-body'}),
     ]),
   ]);
@@ -1394,9 +1329,9 @@ function showOrderModal(product,user,onClose){
   return ()=>{if(bg.parentNode)bg.parentNode.removeChild(bg);};
 }
 
-// ===========================================
-// CHAT SYSTEM - 1 order = 1 chat room
-// ===========================================
+// ════════════════════════════════════════
+// CHAT SYSTEM — 1 order = 1 chat room
+// ════════════════════════════════════════
 function getOrCreateOrderChat(order){
   const chats=DB.get('chats')||[];
   // Cari chat by orderId
@@ -1419,20 +1354,17 @@ function getOrCreateOrderChat(order){
   return chat;
 }
 
-// Legacy compat - masih dipakai internal
+// Legacy compat — masih dipakai internal
 function getOrCreateChat(userId,userName,userEmail){
-  // deprecated - gunakan getOrCreateOrderChat
+  // deprecated — gunakan getOrCreateOrderChat
   return null;
 }
 
-function sendChatMessage(chatId,text,role,media){
+function sendChatMessage(chatId,text,role){
   const chats=DB.get('chats')||[];
   const idx=chats.findIndex(c=>c.id===chatId);
   if(idx===-1)return;
-  const msg={id:uid(),role,time:now()};
-  if(media){msg.mediaType=media.type;msg.mediaUrl=media.url;msg.text=text||'';}
-  else{msg.text=strip(text);}
-  chats[idx].messages.push(msg);
+  chats[idx].messages.push({id:uid(),text:strip(text),role,time:now()});
   chats[idx].lastActivity=now();
   DB.set('chats',chats);
 }
@@ -1457,41 +1389,7 @@ function buildChatUI(chatId, myRole, onClose){
 
   const msgsEl=h('div',{style:{flex:1,overflowY:'auto',padding:'16px',display:'flex',flexDirection:'column',gap:'0px',minHeight:'0'}});
   const inputEl=h('input',{type:'text',placeholder:'Ketik pesan...',style:{flex:1}});
-  const sendBtn=h('button',{class:'btn-w',style:{padding:'10px 18px',flexShrink:0}},'➤');
-
-  // Tombol media
-  const mediaBtn=document.createElement('button');
-  mediaBtn.innerHTML='📎';
-  mediaBtn.style.cssText='background:none;border:1px solid #333;color:#888;border-radius:8px;padding:8px 12px;font-size:16px;cursor:pointer;flex-shrink:0;';
-  const mediaInput=document.createElement('input');
-  mediaInput.type='file';mediaInput.accept='image/*,video/*';mediaInput.style.display='none';
-  mediaInput.addEventListener('change',async(e)=>{
-    const file=e.target.files[0];if(!file)return;
-    const isVideo=file.type.startsWith('video/');
-    const isImage=file.type.startsWith('image/');
-    if(!isVideo&&!isImage){showToast('Hanya gambar atau video','err');return;}
-    mediaBtn.innerHTML='⏳';mediaBtn.disabled=true;
-    try{
-      let url;
-      if(isImage){
-        url=await uploadToImgbb(file);
-      } else {
-        // Video - upload ke GitHub
-        if(!getGithubToken()){showToast('Set GitHub token dulu di Site Tools','err');mediaBtn.innerHTML='📎';mediaBtn.disabled=false;return;}
-        const result=await uploadToGithub(file,'chat_media');
-        url=await getGithubDownloadUrl(result.path);
-      }
-      _lastSentAt=Date.now();
-      sendChatMessage(chatId,'',myRole,{type:isImage?'image':'video',url});
-      const curMsgs=(DB.get('chats')||[]).find(c=>c.id===chatId)?.messages||[];
-      if(myRole==='customer') localStorage.setItem('ma_cust_read_'+chatId,String(curMsgs.length));
-      else localStorage.setItem('ma_chat_read_'+chatId,String(curMsgs.length));
-      renderMsgs();
-    }catch(err){showToast('Upload gagal: '+err.message,'err');}
-    mediaBtn.innerHTML='📎';mediaBtn.disabled=false;
-    mediaInput.value='';
-  });
-  mediaBtn.addEventListener('click',()=>mediaInput.click());
+  const sendBtn=h('button',{class:'btn-w',style:{padding:'10px 18px',flexShrink:0}}, '➤');
 
   function renderMsgs(newData){
     const prevScroll=msgsEl.scrollTop;
@@ -1504,72 +1402,13 @@ function buildChatUI(chatId, myRole, onClose){
 
     chat.messages.forEach(msg=>{
       const isMe=msg.role===myRole;
-      const wrap=document.createElement('div');
-      wrap.style.cssText='display:flex;flex-direction:column;align-items:'+(isMe?'flex-end':'flex-start')+';margin-bottom:4px;';
-
-      if(msg.mediaType==='image'&&msg.mediaUrl){
-        // Gambar - pakai img dengan crossorigin anonymous untuk fix CORS di desktop
-        const imgWrap=document.createElement('div');
-        imgWrap.style.cssText='max-width:220px;border-radius:12px;overflow:hidden;cursor:pointer;background:#111;';
-        const img=document.createElement('img');
-        img.style.cssText='width:100%;display:block;border-radius:12px;';
-        img.crossOrigin='anonymous';
-        // Tambah cache-buster hanya jika bukan imgbb (imgbb sudah CORS-ready)
-        img.src=msg.mediaUrl;
-        img.onerror=()=>{
-          // Fallback: tampilkan link kalau gambar gagal load
-          imgWrap.innerHTML='';
-          const lnk=document.createElement('a');
-          lnk.href=msg.mediaUrl;lnk.target='_blank';lnk.textContent='🖼️ Lihat Gambar';
-          lnk.style.cssText='color:#4a9eff;font-size:13px;padding:10px;display:block;';
-          imgWrap.appendChild(lnk);
-        };
-        img.onclick=()=>{
-          const lb=document.createElement('div');
-          lb.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;';
-          const bi=document.createElement('img');bi.src=msg.mediaUrl;bi.style.cssText='max-width:95vw;max-height:85vh;object-fit:contain;border-radius:8px;';
-          const cl=document.createElement('button');cl.textContent='✕ Tutup';cl.style.cssText='margin-top:14px;background:none;border:1px solid #333;color:#888;padding:8px 20px;border-radius:8px;cursor:pointer;';
-          cl.onclick=()=>lb.remove();
-          lb.appendChild(bi);lb.appendChild(cl);lb.onclick=(e)=>{if(e.target===lb)lb.remove();};
-          document.body.appendChild(lb);
-        };
-        imgWrap.appendChild(img);
-        const bubble=document.createElement('div');
-        bubble.className='chat-bubble '+(isMe?'me':'them');
-        bubble.style.padding='4px';bubble.style.background='transparent';
-        bubble.appendChild(imgWrap);
-        wrap.appendChild(bubble);
-      } else if(msg.mediaType==='video'&&msg.mediaUrl){
-        const bubble=document.createElement('div');
-        bubble.className='chat-bubble '+(isMe?'me':'them');
-        bubble.style.padding='4px';
-        const vid=document.createElement('video');
-        vid.src=msg.mediaUrl;vid.controls=true;
-        vid.style.cssText='max-width:220px;border-radius:10px;display:block;';
-        vid.onerror=()=>{
-          bubble.innerHTML='';
-          const lnk=document.createElement('a');
-          lnk.href=msg.mediaUrl;lnk.target='_blank';lnk.textContent='🎥 Lihat Video';
-          lnk.style.cssText='color:#4a9eff;font-size:13px;';
-          bubble.appendChild(lnk);
-        };
-        bubble.appendChild(vid);
-        wrap.appendChild(bubble);
-      } else {
-        const bubble=document.createElement('div');
-        bubble.className='chat-bubble '+(isMe?'me':'them');
-        bubble.textContent=msg.text;
-        wrap.appendChild(bubble);
-      }
-
-      const time=document.createElement('div');
-      time.className='chat-time '+(isMe?'me':'');
-      time.textContent=msg.time;
-      wrap.appendChild(time);
-      msgsEl.appendChild(wrap);
+      const bubble=h('div',{class:'chat-bubble '+(isMe?'me':'them')},msg.text);
+      const time=h('div',{class:'chat-time '+(isMe?'me':'')},msg.time);
+      msgsEl.appendChild(bubble);
+      msgsEl.appendChild(time);
     });
 
-    // Typing indicator
+    // Typing indicator — tampilkan jika pihak lain sedang mengetik
     const otherRole=myRole==='founder'?'customer':'founder';
     if(chat.typing===otherRole&&chat.typingExp&&Date.now()<chat.typingExp){
       const typingEl=document.createElement('div');
@@ -1605,7 +1444,7 @@ function buildChatUI(chatId, myRole, onClose){
     typingTimer=setTimeout(()=>setTyping(chatId,myRole,false),3500);
   });
 
-  // Poll chat tiap 3 detik - lebih cepat untuk real-time feel
+  // Poll chat tiap 3 detik — lebih cepat untuk real-time feel
   pollChat=setInterval(async()=>{
     try{
       const res=await fetch(`${JSONBIN_API}/b/${_binId}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':false}});
@@ -1619,7 +1458,7 @@ function buildChatUI(chatId, myRole, onClose){
           const sLen=serverChat.messages?.length||0;
           const lLen=localChat.messages?.length||0;
           if(msSinceSent<=5000&&lLen>sLen){
-            // Lokal masih lebih update - skip overwrite, render dari lokal
+            // Lokal masih lebih update — skip overwrite, render dari lokal
             renderMsgs();
             return;
           }
@@ -1631,7 +1470,7 @@ function buildChatUI(chatId, myRole, onClose){
             return;
           }
         }
-        // Server lebih update atau sama - aman untuk overwrite
+        // Server lebih update atau sama — aman untuk overwrite
         _cache.chats=data.chats;
         _localSet('chats',data.chats);
         renderMsgs(data.chats);
@@ -1646,15 +1485,7 @@ function buildChatUI(chatId, myRole, onClose){
 
   const wrap=h('div',{style:{display:'flex',flexDirection:'column',height:'460px'}},[
     msgsEl,
-    (() => {
-      const inputArea=h('div',{style:{padding:'12px 16px',borderTop:'1px solid var(--border)',display:'flex',gap:'8px',alignItems:'center'}},[inputEl,sendBtn]);
-      inputArea.appendChild(mediaBtn);
-      inputArea.appendChild(mediaInput);
-      // Reorder: mediaBtn dulu sebelum input
-      inputArea.insertBefore(mediaBtn, inputEl);
-      inputArea.insertBefore(mediaInput, inputEl);
-      return inputArea;
-    })(),
+    h('div',{style:{padding:'12px 16px',borderTop:'1px solid var(--border)',display:'flex',gap:'8px',alignItems:'center'}},[inputEl,sendBtn]),
   ]);
 
   renderMsgs();
@@ -1662,11 +1493,10 @@ function buildChatUI(chatId, myRole, onClose){
   return {el:wrap, destroy:()=>{clearInterval(pollChat);clearTimeout(typingTimer);setTyping(chatId,myRole,false);}};
 }
 
-// ===========================================
+// ════════════════════════════════════════
 // CUSTOMER APP
-// ===========================================
+// ════════════════════════════════════════
 function renderCustomer(user){
-  initPWA(); // init PWA dengan settings terbaru
   const s=DB.get('settings')||{};
   const products=DB.get('products')||[];
   let page='home', selectedProduct=null;
@@ -1684,7 +1514,7 @@ function renderCustomer(user){
   function buildHome(){
     const ann=s.announcementBarOn&&s.announcementBar ? h('div',{style:{background:'var(--primary)',color:'var(--primary-text)',padding:'10px 20px',textAlign:'center',fontSize:'13px',fontWeight:600}},s.announcementBar) : null;
     
-    // Hero Banner - full bleed, extends behind top navbar
+    // Hero Banner — full bleed, extends behind top navbar
     const heroSection=s.heroBanner ? h('div',{class:'hero-banner'},[
       h('img',{src:s.heroBanner,alt:'banner',style:{width:'100%',height:'100%',objectFit:'cover'}}),
       h('div',{class:'hero-banner-overlay'},[
@@ -1769,7 +1599,7 @@ function renderCustomer(user){
       return h('div',{},[
         h('button',{style:{background:'none',border:'none',color:'var(--text3)',fontSize:'13px',cursor:'pointer',marginBottom:'20px',display:'flex',alignItems:'center',gap:'6px'},onClick(){selectedProduct=null;setPage('products');}},'← Kembali'),
         h('div',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'18px',overflow:'hidden',marginBottom:'16px'}},[
-          // Thumbnail utama - klik buka gallery
+          // Thumbnail utama — klik buka gallery
           h('div',{style:{width:'100%',height:'220px',background:'var(--bg3)',display:'flex',alignItems:'center',justifyContent:'center',overflow:'hidden',cursor:galleryImgs.length?'pointer':'default',position:'relative'},onClick(){if(galleryImgs.length)openLightbox(galleryImgs,0);}},[
             p.thumb ? h('img',{src:p.thumb,alt:p.name,style:{width:'100%',height:'100%',objectFit:'cover'}}) : h('span',{style:{fontSize:'64px'}},'📦'),
             galleryImgs.length>1 ? h('div',{style:{position:'absolute',bottom:'10px',right:'12px',background:'rgba(0,0,0,.6)',color:'#fff',fontSize:'11px',padding:'3px 8px',borderRadius:'8px',fontWeight:700}},'📷 '+galleryImgs.length+' foto') : null,
@@ -1782,7 +1612,7 @@ function renderCustomer(user){
             h('div',{style:{color:'var(--text3)',fontSize:'11px',textTransform:'uppercase',letterSpacing:'2px',marginBottom:'6px'}},p.category),
             h('h2',{style:{fontSize:'22px',fontWeight:800,marginBottom:'8px',letterSpacing:'-0.5px'}},p.name),
             h('p',{style:{color:'var(--text2)',fontSize:'14px',lineHeight:1.7,marginBottom:'16px'}},p.detail||p.desc),
-            // Tombol download file - hanya jika order done
+            // Tombol download file — hanya jika order done
             p.fileRef && myDoneOrder ? h('div',{style:{background:'#0a1a0a',border:'1px solid #1a3a1a',borderRadius:'12px',padding:'14px 16px',marginBottom:'16px',display:'flex',alignItems:'center',gap:'12px'}},[
               h('span',{style:{fontSize:'24px'}},'📥'),
               h('div',{style:{flex:1}},[
@@ -2072,7 +1902,7 @@ function renderCustomer(user){
     list.forEach(t=>{
       const imgs=t.images||[];
       const card=h('div',{class:'card',style:{marginBottom:'16px'}},[
-        // Grid foto - klik buka lightbox
+        // Grid foto — klik buka lightbox
         imgs.length>0 ? h('div',{style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'6px',marginBottom:'14px',cursor:'pointer'},onClick(){openLightbox(imgs,0);}},
           imgs.slice(0,6).map((img,i)=>{
             const wrap2=document.createElement('div');
@@ -2099,7 +1929,7 @@ function renderCustomer(user){
     if(chatDestroy&&p!=='chat'){chatDestroy();chatDestroy=null;}
     history.replaceState(null,'',p==='home'?location.pathname+'#home':'#'+p);
     const s2=DB.get('settings')||{};
-    document.title=(s2.siteName||'MasAn Development')+' - '+p.charAt(0).toUpperCase()+p.slice(1);
+    document.title=(s2.siteName||'MasAn Development')+' — '+p.charAt(0).toUpperCase()+p.slice(1);
     const content=document.getElementById('cust-content');
     if(!content)return;
     content.innerHTML='';
@@ -2128,11 +1958,6 @@ function renderCustomer(user){
       ]),
       h('div',{style:{display:'flex',alignItems:'center',gap:'8px'}},[
         h('span',{style:{color:'var(--text3)',fontSize:'12px'}},'Hi, '+strip(user.name)),
-        // Tombol Install App - muncul hanya kalau PWA bisa diinstall
-        h('button',{id:'pwa-install-btn',title:'Install sebagai App',style:{display:'none',background:'none',border:'1px solid #25d366',color:'#25d366',fontSize:'11px',padding:'5px 10px',borderRadius:'8px',alignItems:'center',gap:'4px'},onClick(){
-          if(window._installPrompt){window._installPrompt.prompt();window._installPrompt.userChoice.then(r=>{if(r.outcome==='accepted')showToast('App diinstall! ✅');});}
-          else{showToast('Buka di browser lalu pilih "Tambahkan ke Layar Utama"');}
-        }},'📲 Install App'),
         h('button',{title:'Salin link halaman ini',style:{background:'none',border:'1px solid var(--border2)',color:'var(--text3)',fontSize:'11px',padding:'5px 10px',borderRadius:'8px'},onClick(){
           const url=location.href;
           navigator.clipboard.writeText(url).then(()=>showToast('Link disalin! 🔗')).catch(()=>{prompt('Salin link ini:',url);});
@@ -2150,7 +1975,7 @@ function renderCustomer(user){
         h('div',{style:{position:'relative',display:'inline-block'}},[
           h('span',{style:{fontSize:'20px'}},n.icon),
           n.id==='chat' ? (() => {
-            // Badge chat customer - hitung semua pesan founder unread dari semua chat order
+            // Badge chat customer — hitung semua pesan founder unread dari semua chat order
             const chats=DB.get('chats')||[];
             const myChats=chats.filter(c=>c.userId===user.id||c.userEmail===user.email);
             let totalUnread=0;
@@ -2176,9 +2001,9 @@ function renderCustomer(user){
   startPolling(user);
 }
 
-// ===========================================
+// ════════════════════════════════════════
 // FOUNDER PANEL
-// ===========================================
+// ════════════════════════════════════════
 function renderFounder(){
   // Request notification permission
   if('Notification' in window&&Notification.permission==='default'){
@@ -2274,7 +2099,7 @@ function renderFounder(){
       ),
       h('div',{class:'card',style:{marginBottom:'16px',border:'1px solid #1a2a1a'}},[
         h('h4',{style:{fontWeight:700,marginBottom:'8px',color:'#44ff44'}},'🔗 Share / Publish Situs'),
-        h('p',{style:{color:'#555',fontSize:'12px',marginBottom:'12px',lineHeight:1.6}},'Bagikan link ini ke customer - mereka bisa langsung buka situsmu.'),
+        h('p',{style:{color:'#555',fontSize:'12px',marginBottom:'12px',lineHeight:1.6}},'Bagikan link ini ke customer — mereka bisa langsung buka situsmu.'),
         h('div',{style:{background:'#0a0a0a',border:'1px solid #222',borderRadius:'8px',padding:'10px 14px',fontFamily:'monospace',fontSize:'11px',color:'#888',wordBreak:'break-all',marginBottom:'12px',userSelect:'all'}},location.href.split('#')[0]),
         h('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap'}},[
           h('button',{class:'btn-w',style:{padding:'9px 18px',fontSize:'12px'},onClick(){const url=location.href.split('#')[0];navigator.clipboard.writeText(url).then(()=>showToast('Link disalin! 🔗')).catch(()=>{prompt('Salin link ini:',url);});}},'📋 Salin Link'),
@@ -2297,7 +2122,7 @@ function renderFounder(){
     function prodForm(){
       const isEdit=!!(editProduct&&editProduct.id);
       const fields={};
-      // State lokal - sudah berupa URL imgbb (bukan base64)
+      // State lokal — sudah berupa URL imgbb (bukan base64)
       let galleryImages=[...(editProduct?.gallery||[])];
       let fileData=editProduct?.fileRef||null; // {path, fileName, size} dari GitHub
       let fileName=editProduct?.fileName||'';
@@ -2345,7 +2170,7 @@ function renderFounder(){
           fields[f.key]=inp;
           return h('div',{class:'form-row'},[h('label',{class:'lbl'},f.label),inp]);
         }),
-        // Thumbnail - upload ke imgbb saat pilih
+        // Thumbnail — upload ke imgbb saat pilih
         h('div',{class:'form-row'},[
           h('label',{class:'lbl'},'Thumbnail Utama'),
           h('input',{type:'file',accept:'image/*',style:{background:'none',border:'none',color:'#555',padding:'4px 0'},onChange:async(e)=>{
@@ -2360,7 +2185,7 @@ function renderFounder(){
           thumbPreview,
           thumbStatus,
         ]),
-        // Gallery foto - upload ke imgbb satu per satu
+        // Gallery foto — upload ke imgbb satu per satu
         h('div',{class:'form-row'},[
           h('label',{class:'lbl'},'Gallery Foto Detail (bisa banyak)'),
           (() => {
@@ -2387,7 +2212,7 @@ function renderFounder(){
             return wrap;
           })(),
         ]),
-        // File download - upload ke GitHub
+        // File download — upload ke GitHub
         h('div',{class:'form-row'},[
           h('label',{class:'lbl'},'File Download (terkunci sampai order done)'),
           (() => {
@@ -2406,7 +2231,7 @@ function renderFounder(){
                 const result=await uploadToGithub(f, pid);
                 fileData=result; // simpan {path, fileName, size}
                 fileName=result.fileName;
-                st.textContent='✅ '+fileName+' ('+Math.round(result.size/1024)+'KB) - tersimpan di GitHub';
+                st.textContent='✅ '+fileName+' ('+Math.round(result.size/1024)+'KB) — tersimpan di GitHub';
                 st.style.color='#25d366';
               }catch(err){
                 st.textContent='❌ Upload gagal: '+err.message;st.style.color='#ff4444';
@@ -2699,7 +2524,7 @@ function renderFounder(){
         row.addEventListener('mouseenter',()=>{if(!isOpen)row.style.background='#0f0f0f';});
         row.addEventListener('mouseleave',()=>{if(!isOpen)row.style.background=isOpen?'#111':'#0a0a0a';});
 
-        // Avatar - inisial nama user
+        // Avatar — inisial nama user
         const av=document.createElement('div');
         av.style.cssText=`width:44px;height:44px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;color:#fff;flex-shrink:0;`;
         av.textContent=(chat.userName?.[0]||'?').toUpperCase();
@@ -2774,7 +2599,7 @@ function renderFounder(){
       }catch(e){}
     },4000);
 
-    // Cleanup listener saat tab diganti - gunakan custom event
+    // Cleanup listener saat tab diganti — gunakan custom event
     const _cleanupKey='ma_chat_cleanup';
     window[_cleanupKey]=()=>{
       clearInterval(listPollTimer);
@@ -3043,42 +2868,8 @@ function renderFounder(){
         h('button',{class:'btn-red',style:{marginTop:'10px',fontSize:'11px'},onClick(){cfg.heroBanner='';buildBannerPreview();}},'Hapus Banner'),
       ]),
 
-      // Icon App - untuk PWA/APK
-      h('div',{class:'card',style:{marginBottom:'16px',border:'1px solid #1a1a2a'}},[
-        h('h4',{style:{fontWeight:700,marginBottom:'8px',color:'#4a9eff'}},'📲 Icon Aplikasi (PWA/APK)'),
-        h('p',{style:{color:'#444',fontSize:'12px',marginBottom:'12px'}},'Icon yang muncul di launcher HP saat app diinstall. Gunakan gambar persegi, min 512x512px.'),
-        (() => {
-          const preview=document.createElement('div');
-          preview.style.cssText='width:80px;height:80px;border-radius:18px;overflow:hidden;border:1px solid #333;margin-bottom:8px;display:flex;align-items:center;justify-content:center;background:#111;font-size:28px;font-weight:900;color:#fff;';
-          function renderIconPreview(){
-            preview.innerHTML='';
-            if(cfg.appIcon){const im=document.createElement('img');im.src=cfg.appIcon;im.style.cssText='width:100%;height:100%;object-fit:cover;';preview.appendChild(im);}
-            else{preview.textContent=(cfg.appShortName||cfg.siteName||'MA').slice(0,2).toUpperCase();}
-          }
-          renderIconPreview();
-          const st=document.createElement('div');st.style.cssText='color:#555;font-size:11px;margin:4px 0 8px;';st.textContent=cfg.appIcon?'✅ Icon tersimpan':'Belum ada icon';
-          const inp=document.createElement('input');inp.type='file';inp.accept='image/*';
-          inp.style.cssText='background:none;border:none;color:#555;padding:4px 0;';
-          inp.addEventListener('change',async(e)=>{
-            const f=e.target.files[0];if(!f)return;
-            st.textContent='⏳ Mengupload icon...';st.style.color='#888';
-            try{
-              cfg.appIcon=await uploadToImgbb(f);
-              renderIconPreview();
-              st.textContent='✅ Icon terupload!';st.style.color='#25d366';
-            }catch(err){st.textContent='❌ Gagal: '+err.message;st.style.color='#ff4444';}
-          });
-          const shortInp=document.createElement('input');shortInp.type='text';shortInp.placeholder='Contoh: MasAn (maks 12 karakter)';shortInp.value=cfg.appShortName||'';shortInp.maxLength=12;
-          shortInp.addEventListener('input',e=>{cfg.appShortName=e.target.value;renderIconPreview();});
-          const delBtn=document.createElement('button');delBtn.textContent='Hapus Icon';delBtn.className='btn-red';delBtn.style.cssText='margin-top:8px;font-size:11px;';
-          delBtn.onclick=()=>{cfg.appIcon='';renderIconPreview();st.textContent='Icon dihapus';};
-          const wrap=document.createElement('div');
-          wrap.appendChild(preview);wrap.appendChild(inp);wrap.appendChild(st);
-          wrap.appendChild(h('div',{class:'form-row',style:{marginTop:'8px'}},[h('label',{class:'lbl'},'Nama Pendek App (di launcher)'),shortInp]));
-          wrap.appendChild(delBtn);
-          return wrap;
-        })(),
-      ]),
+      h('div',{class:'card',style:{marginBottom:'16px'}},[
+        h('h4',{style:{fontWeight:700,marginBottom:'16px',color:'#888'}},'Informasi Situs'),
         ...fields.map(f=>{
           const inp=h('input',{type:f.type||'text'});
           inp.value=cfg[f.key]||'';
@@ -3192,7 +2983,7 @@ function renderFounder(){
       h('h2',{style:{fontSize:'24px',fontWeight:800,marginBottom:'6px'}},'Site Tools'),
       h('p',{style:{color:'#444',fontSize:'13px',marginBottom:'24px'}},'Tools manajemen lanjutan'),
 
-      // GitHub Token - disimpan di JSONBin bukan di kode
+      // GitHub Token — disimpan di JSONBin bukan di kode
       h('div',{class:'card',style:{marginBottom:'16px',border:'1px solid #1a2a1a'}},[
         h('h4',{style:{fontWeight:700,marginBottom:'8px',color:'#44ff44'}},'🔑 GitHub Token (File Download)'),
         h('p',{style:{color:'#444',fontSize:'12px',marginBottom:'12px',lineHeight:1.6}},'Token ini disimpan di database, bukan di source code. Aman dari scan GitHub.\nGenerate di: github.com → Settings → Developer settings → Personal access tokens → centang repo'),
@@ -3307,12 +3098,12 @@ function renderFounder(){
   },300);
 }
 
-// ===========================================
+// ════════════════════════════════════════
 // BOOT
-// ===========================================
+// ════════════════════════════════════════
 (async function boot(){
   document.getElementById('app').innerHTML='<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;"><div class="spinner"></div><p style="color:#333;font-size:12px;">Menghubungkan ke server...</p></div>';
-  try{await DB.init();}catch(e){console.warn('DB init gagal, pakai cache lokal:',e);}
+  try{await Promise.race([DB.init(),new Promise((_,rej)=>setTimeout(()=>rej('timeout'),6000))]);}catch(e){console.warn('DB init gagal/timeout, pakai cache lokal:',e);}
 
   const s=DB.get('settings')||{};
   applyTheme();
