@@ -134,6 +134,9 @@ const DEFAULT_DATA = {
 // ════════════════════════════════════════
 let _cache = {};
 let _saveTimer = null;
+let _pushInProgress = false;
+let _pushQueued = false;
+let _lastSentAt = 0; // timestamp terakhir kali user kirim pesan/typing
 
 function _localGet(k){try{return JSON.parse(localStorage.getItem('ma_'+k));}catch{return null;}}
 function _localSet(k,v){try{localStorage.setItem('ma_'+k,JSON.stringify(v));}catch{}}
@@ -162,12 +165,16 @@ const DB = {
     _cache[k]=v;
     _localSet(k,v);
     clearTimeout(_saveTimer);
-    // Orders dan users: push segera (tidak debounce) supaya tidak hilang
     if(k==='orders'||k==='users'){DB._push();}
-    else{_saveTimer = setTimeout(()=>DB._push(), 800);}
+    // chats: debounce 300ms — cepat tapi tetap batch typing + message sekaligus
+    else if(k==='chats'){_saveTimer=setTimeout(()=>DB._push(),300);}
+    else{_saveTimer=setTimeout(()=>DB._push(),800);}
   },
   async _push(){
     if(!_binId) return;
+    // Kalau sedang push, queue sekali lagi supaya tidak saling timpa
+    if(_pushInProgress){_pushQueued=true;return;}
+    _pushInProgress=true;
     const data={
       settings:_cache.settings||DEFAULT_DATA.settings,
       products:_cache.products||DEFAULT_DATA.products,
@@ -177,12 +184,17 @@ const DB = {
       chats:_cache.chats||[],
     };
     try{
-      await fetch(`${JSONBIN_API}/b/${_binId}`,{
+      const res=await fetch(`${JSONBIN_API}/b/${_binId}`,{
         method:'PUT',
         headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},
         body:JSON.stringify(data),
       });
+      if(!res.ok) console.warn('JSONBin push gagal status:',res.status);
     }catch(e){console.warn('JSONBin push gagal:',e);}
+    finally{
+      _pushInProgress=false;
+      if(_pushQueued){_pushQueued=false;setTimeout(()=>DB._push(),50);}
+    }
   },
   async init(){
     try{
@@ -242,9 +254,53 @@ function startPolling(session){
       if(Array.isArray(data.users)) _cache.users=data.users;
       if(Array.isArray(data.orders)) _cache.orders=data.orders;
       if(Array.isArray(data.appeals)) _cache.appeals=data.appeals;
-      if(Array.isArray(data.chats)) _cache.chats=data.chats;
-      // Sync ke localStorage
-      ['users','orders','appeals','chats'].forEach(k=>{if(_cache[k]!==undefined)_localSet(k,_cache[k]);});
+      // KRUSIAL: jangan timpa chats dari server jika user baru kirim pesan
+      // dalam 5 detik terakhir — cegah race condition pesan hilang
+      const msSinceSent=Date.now()-_lastSentAt;
+      if(Array.isArray(data.chats)&&msSinceSent>5000){
+        // Merge aman: ambil versi server, tapi protect pesan lokal yang belum terkirim
+        // Cek tiap chat — jika lokal punya lebih banyak pesan, pertahankan lokal
+        const localChats=_cache.chats||[];
+        const serverChats=data.chats;
+        const merged=serverChats.map(sc=>{
+          const lc=localChats.find(l=>l.id===sc.id);
+          if(lc&&(lc.messages?.length||0)>(sc.messages?.length||0)){
+            // Lokal lebih banyak — kembalikan lokal dan trigger push
+            setTimeout(()=>DB._push(),100);
+            return lc;
+          }
+          return sc;
+        });
+        // Tambahkan chat lokal yang belum ada di server (baru dibuat)
+        localChats.forEach(lc=>{
+          if(!merged.find(m=>m.id===lc.id)) merged.push(lc);
+        });
+        _cache.chats=merged;
+        _localSet('chats',merged);
+      } else if(Array.isArray(data.chats)&&msSinceSent<=5000){
+        // Dalam window proteksi — skip overwrite, tapi catat kalau server lebih update
+        // (user lain mungkin juga kirim pesan)
+        const localChats=_cache.chats||[];
+        const serverChats=data.chats;
+        let anyServerNewer=false;
+        serverChats.forEach(sc=>{
+          const lc=localChats.find(l=>l.id===sc.id);
+          if(!lc||(sc.messages?.length||0)>(lc.messages?.length||0)) anyServerNewer=true;
+        });
+        if(anyServerNewer){
+          // Merge: ambil yang lebih banyak pesannya per chat
+          const merged=serverChats.map(sc=>{
+            const lc=localChats.find(l=>l.id===sc.id);
+            if(lc&&(lc.messages?.length||0)>=(sc.messages?.length||0)) return lc;
+            return sc;
+          });
+          localChats.forEach(lc=>{if(!merged.find(m=>m.id===lc.id))merged.push(lc);});
+          _cache.chats=merged;
+          _localSet('chats',merged);
+        }
+      }
+      // Sync key lain ke localStorage
+      ['users','orders','appeals'].forEach(k=>{if(_cache[k]!==undefined)_localSet(k,_cache[k]);});
 
       if(!isFounder){
         // Cek apakah user ini diblokir — hanya jika users berhasil diload
@@ -258,22 +314,22 @@ function startPolling(session){
             return;
           }
         }
-        // Update badge chat customer real-time
+        // Update badge chat customer real-time — cek semua chat order milik user
         if(Array.isArray(_cache.chats)){
-          const myChat=_cache.chats.find(c=>c.userId===session.id)||_cache.chats.find(c=>c.userEmail===session.email);
-          const badge=document.getElementById('chat-nav-badge');
-          const navChatBtn=document.getElementById('nav-chat');
-          if(myChat&&navChatBtn){
-            const readKey='ma_cust_read_'+myChat.id;
-            const lastRead=parseInt(localStorage.getItem(readKey)||'0');
+          const myChats=_cache.chats.filter(c=>c.userId===session.id||c.userEmail===session.email);
+          let totalUnread=0;
+          myChats.forEach(myChat=>{
+            const lastRead=parseInt(localStorage.getItem('ma_cust_read_'+myChat.id)||'0');
             const msgs=myChat.messages||[];
-            let unread=0;
-            for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='founder')unread++;}
+            for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='founder')totalUnread++;}
+          });
+          const navChatBtn=document.getElementById('nav-chat');
+          if(navChatBtn){
             const existBadge=navChatBtn.querySelector('#chat-nav-badge');
             if(existBadge)existBadge.remove();
-            if(unread>0){
+            if(totalUnread>0){
               const iconWrap=navChatBtn.querySelector('div');
-              if(iconWrap){const b=document.createElement('span');b.id='chat-nav-badge';b.style.cssText='position:absolute;top:-4px;right:-6px;background:#25d366;color:#fff;border-radius:10px;min-width:16px;height:16px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 3px;';b.textContent=unread>99?'99+':String(unread);iconWrap.appendChild(b);}
+              if(iconWrap){const b=document.createElement('span');b.id='chat-nav-badge';b.style.cssText='position:absolute;top:-4px;right:-6px;background:#25d366;color:#fff;border-radius:10px;min-width:16px;height:16px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 3px;';b.textContent=totalUnread>99?'99+':String(totalUnread);iconWrap.appendChild(b);}
             }
           }
         }
@@ -1158,22 +1214,34 @@ function showOrderModal(product,user,onClose){
 }
 
 // ════════════════════════════════════════
-// CHAT SYSTEM
+// CHAT SYSTEM — 1 order = 1 chat room
 // ════════════════════════════════════════
-function getOrCreateChat(userId,userName,userEmail){
+function getOrCreateOrderChat(order){
   const chats=DB.get('chats')||[];
-  // Cari by userId dulu, fallback ke email agar tidak duplicate setelah re-register
-  let chat=chats.find(c=>c.userId===userId)||chats.find(c=>c.userEmail===strip(userEmail));
+  // Cari chat by orderId
+  let chat=chats.find(c=>c.orderId===order.id);
   if(!chat){
-    chat={id:uid(),userId,userName:strip(userName),userEmail:strip(userEmail),messages:[],createdAt:now()};
+    chat={
+      id:uid(),
+      orderId:order.id,
+      productId:order.productId,
+      productName:order.productName,
+      userId:order.userId,
+      userName:order.userName,
+      userEmail:order.userEmail,
+      messages:[],
+      createdAt:now(),
+    };
     chats.push(chat);
     DB.set('chats',chats);
-  } else if(chat.userId!==userId){
-    // Update userId jika ditemukan by email (user re-register)
-    const idx=chats.findIndex(c=>c.id===chat.id);
-    if(idx!==-1){chats[idx].userId=userId;DB.set('chats',chats);}
   }
   return chat;
+}
+
+// Legacy compat — masih dipakai internal
+function getOrCreateChat(userId,userName,userEmail){
+  // deprecated — gunakan getOrCreateOrderChat
+  return null;
 }
 
 function sendChatMessage(chatId,text,role){
@@ -1239,6 +1307,7 @@ function buildChatUI(chatId, myRole, onClose){
   function sendMsg(){
     const txt=strip(inputEl.value.trim());
     if(!txt)return;
+    _lastSentAt=Date.now(); // proteksi polling jangan overwrite 5 detik ke depan
     sendChatMessage(chatId,txt,myRole);
     setTyping(chatId,myRole,false);
     inputEl.value='';
@@ -1266,6 +1335,26 @@ function buildChatUI(chatId, myRole, onClose){
       if(!res.ok)return;
       const data=await res.json();
       if(Array.isArray(data.chats)){
+        const msSinceSent=Date.now()-_lastSentAt;
+        const serverChat=data.chats.find(c=>c.id===chatId);
+        const localChat=(DB.get('chats')||[]).find(c=>c.id===chatId);
+        if(serverChat&&localChat){
+          const sLen=serverChat.messages?.length||0;
+          const lLen=localChat.messages?.length||0;
+          if(msSinceSent<=5000&&lLen>sLen){
+            // Lokal masih lebih update — skip overwrite, render dari lokal
+            renderMsgs();
+            return;
+          }
+          // Merge: gunakan yang lebih banyak pesan
+          if(lLen>sLen){
+            // Push lokal ke server
+            setTimeout(()=>DB._push(),50);
+            renderMsgs();
+            return;
+          }
+        }
+        // Server lebih update atau sama — aman untuk overwrite
         _cache.chats=data.chats;
         _localSet('chats',data.chats);
         renderMsgs(data.chats);
@@ -1416,13 +1505,12 @@ function renderCustomer(user){
   function buildChat(){
     if(chatDestroy){chatDestroy();chatDestroy=null;}
     const orders=DB.get('orders')||[];
-    // Cari order milik user ini — fallback ke email juga jika userId berubah
     const myOrders=orders.filter(o=>o.userId===user.id||o.userEmail===user.email);
-    const hasAcceptedOrder=myOrders.some(o=>o.status==='done'||o.chatEnabled);
+    const acceptedOrders=myOrders.filter(o=>o.status==='done'||o.chatEnabled);
 
     const wrap=h('div',{},[
       h('h2',{style:{fontSize:'26px',fontWeight:800,marginBottom:'4px',letterSpacing:'-1px'}},'Chat'),
-      h('p',{style:{color:'var(--text3)',fontSize:'13px',marginBottom:'20px'}},'Chat langsung dengan Founder'),
+      h('p',{style:{color:'var(--text3)',fontSize:'13px',marginBottom:'20px'}},'Chat per orderan produk'),
     ]);
 
     if(myOrders.length===0){
@@ -1434,26 +1522,82 @@ function renderCustomer(user){
       return wrap;
     }
 
-    if(!hasAcceptedOrder){
+    if(acceptedOrders.length===0){
       wrap.appendChild(h('div',{class:'card',style:{textAlign:'center',padding:'40px 20px',border:'1px solid #2a2a00'}},[
         h('div',{style:{fontSize:'40px',marginBottom:'12px'}},'⏳'),
-        h('p',{style:{color:'#888',fontSize:'14px',lineHeight:1.6}},'Chat akan aktif setelah founder menerima ordermu.\nSabar ya! 😊'),
+        h('p',{style:{color:'#888',fontSize:'14px',lineHeight:1.6}},'Chat akan aktif setelah founder menerima ordermu. Sabar ya! 😊'),
       ]));
       return wrap;
     }
 
-    // Cari existing chat — fallback ke email juga
     const allChats=DB.get('chats')||[];
-    let chat=allChats.find(c=>c.userId===user.id)||allChats.find(c=>c.userEmail===user.email);
-    // Jika chat belum ada tapi order sudah done, buat sekarang
-    if(!chat){chat=getOrCreateChat(user.id,user.name,user.email);}
+    const chatPanel=h('div',{id:'cust-chat-panel'});
+    let activeChatDestroy=null;
 
-    // Build chat UI
-    const chatContainer=h('div',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'16px',overflow:'hidden'}});
-    const {el:chatEl, destroy}=buildChatUI(chat.id,'customer');
-    chatDestroy=destroy;
-    chatContainer.appendChild(chatEl);
-    wrap.appendChild(chatContainer);
+    function openOrderChat(order){
+      if(activeChatDestroy){activeChatDestroy();activeChatDestroy=null;}
+      let chat=allChats.find(c=>c.orderId===order.id);
+      if(!chat){chat=getOrCreateOrderChat(order);}
+      // Mark as read
+      const freshChats=DB.get('chats')||[];
+      const freshChat=freshChats.find(c=>c.id===chat.id);
+      const msgLen=freshChat?.messages?.length||0;
+      localStorage.setItem('ma_cust_read_'+chat.id,String(msgLen));
+      chatPanel.innerHTML='';
+      const header=h('div',{style:{display:'flex',alignItems:'center',gap:'10px',padding:'12px 16px',borderBottom:'1px solid var(--border)',background:'var(--bg3)'}},[
+        h('button',{style:{background:'none',border:'none',color:'var(--text3)',fontSize:'20px',lineHeight:1},onClick(){if(activeChatDestroy){activeChatDestroy();activeChatDestroy=null;chatDestroy=null;}chatPanel.innerHTML='';}},'←'),
+        h('div',{style:{flex:1}},[
+          h('div',{style:{fontWeight:700,fontSize:'14px'}},order.productName),
+          h('div',{style:{color:'#25d366',fontSize:'11px',fontWeight:600}},'Chat dengan Founder'),
+        ]),
+      ]);
+      const {el:chatEl,destroy}=buildChatUI(chat.id,'customer');
+      activeChatDestroy=destroy;chatDestroy=destroy;
+      chatPanel.appendChild(h('div',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'16px',overflow:'hidden'}},[header,chatEl]));
+    }
+
+    // List order yang sudah accepted
+    const listEl=h('div',{style:{display:'flex',flexDirection:'column',gap:'10px',marginBottom:'16px'}});
+    acceptedOrders.forEach(order=>{
+      const chat=allChats.find(c=>c.orderId===order.id);
+      let unread=0;
+      if(chat){
+        const lastRead=parseInt(localStorage.getItem('ma_cust_read_'+chat.id)||'0');
+        const msgs=chat.messages||[];
+        for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='founder')unread++;}
+      }
+      const lastMsg=chat?.messages?.slice(-1)[0];
+      listEl.appendChild(h('div',{style:{background:'var(--bg2)',border:'1px solid '+(unread>0?'#333':'var(--border)'),borderRadius:'14px',padding:'14px 16px',cursor:'pointer',display:'flex',alignItems:'center',gap:'12px'},onClick(){openOrderChat(order);}},[
+        h('div',{style:{width:'42px',height:'42px',borderRadius:'10px',background:'var(--bg3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',flexShrink:0}},'📦'),
+        h('div',{style:{flex:1,minWidth:0}},[
+          h('div',{style:{fontWeight:700,fontSize:'14px',marginBottom:'2px'}},order.productName),
+          h('div',{style:{fontSize:'12px',color:'var(--text3)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},
+            lastMsg?(lastMsg.role==='founder'?'Founder: ':'Kamu: ')+lastMsg.text:'Belum ada pesan'),
+        ]),
+        h('div',{style:{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:'4px',flexShrink:0}},[
+          unread>0?h('span',{style:{background:'#25d366',color:'#fff',borderRadius:'10px',minWidth:'20px',height:'20px',fontSize:'10px',fontWeight:900,display:'flex',alignItems:'center',justifyContent:'center',padding:'0 4px'}},String(unread)):h('span',{}),
+          h('span',{style:{color:'var(--text3)',fontSize:'12px'}},'→'),
+        ]),
+      ]));
+    });
+
+    // Order pending (belum di-acc)
+    const pendingOrders=myOrders.filter(o=>o.status!=='done'&&!o.chatEnabled);
+    if(pendingOrders.length>0){
+      listEl.appendChild(h('p',{style:{color:'var(--text3)',fontSize:'11px',textTransform:'uppercase',letterSpacing:'1px',marginTop:'12px',marginBottom:'6px'}},'⏳ Menunggu Konfirmasi'));
+      pendingOrders.forEach(order=>{
+        listEl.appendChild(h('div',{style:{background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'14px',padding:'14px 16px',opacity:'0.5',display:'flex',alignItems:'center',gap:'12px'}},[
+          h('div',{style:{width:'42px',height:'42px',borderRadius:'10px',background:'var(--bg3)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'20px',flexShrink:0}},'📦'),
+          h('div',{style:{flex:1}},[
+            h('div',{style:{fontWeight:700,fontSize:'14px',marginBottom:'2px'}},order.productName),
+            h('div',{style:{fontSize:'12px',color:'var(--text3)'}},'Menunggu founder menerima order...'),
+          ]),
+        ]));
+      });
+    }
+
+    wrap.appendChild(listEl);
+    wrap.appendChild(chatPanel);
     return wrap;
   }
 
@@ -1586,26 +1730,26 @@ function renderCustomer(user){
     ]),
     h('div',{id:'cust-content',style:{paddingTop:'64px',paddingBottom:'90px',maxWidth:'700px',margin:'0 auto',padding:'80px 20px 90px'}}),
     h('div',{style:{position:'fixed',bottom:0,left:0,right:0,background:'rgba(0,0,0,.95)',backdropFilter:'blur(12px)',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-around',padding:'8px 0 12px'}},
-      navItems.map(n=>h('button',{id:'nav-'+n.id,style:{background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',padding:'6px 16px',position:'relative'},onClick(){selectedProduct=null;setPage(n.id);if(n.id==='chat'){const b=document.getElementById('chat-nav-badge');if(b)b.remove();// Mark chat sebagai read
-            const allC=DB.get('chats')||[];const mc=allC.find(c=>c.userId===user.id)||allC.find(c=>c.userEmail===user.email);if(mc){localStorage.setItem('ma_cust_read_'+mc.id,String(mc.messages?.length||0));}
+      navItems.map(n=>h('button',{id:'nav-'+n.id,style:{background:'none',border:'none',cursor:'pointer',display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',padding:'6px 16px',position:'relative'},onClick(){selectedProduct=null;setPage(n.id);if(n.id==='chat'){const b=document.getElementById('chat-nav-badge');if(b)b.remove();// Mark SEMUA chat order milik user sebagai read
+            const allC=DB.get('chats')||[];const myCs=allC.filter(c=>c.userId===user.id||c.userEmail===user.email);myCs.forEach(mc=>{localStorage.setItem('ma_cust_read_'+mc.id,String(mc.messages?.length||0));});
           }}},[
         h('div',{style:{position:'relative',display:'inline-block'}},[
           h('span',{style:{fontSize:'20px'}},n.icon),
           n.id==='chat' ? (() => {
-            // Badge chat customer — hitung pesan founder yang belum dibaca via localStorage tracking
+            // Badge chat customer — hitung semua pesan founder unread dari semua chat order
             const chats=DB.get('chats')||[];
-            const myChat=chats.find(c=>c.userId===user.id)||chats.find(c=>c.userEmail===user.email);
-            if(!myChat)return h('span',{});
-            const readKey='ma_cust_read_'+myChat.id;
-            const lastRead=parseInt(localStorage.getItem(readKey)||'0');
-            const msgs=myChat.messages||[];
-            let unread=0;
-            for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='founder')unread++;}
-            if(unread===0)return h('span',{});
+            const myChats=chats.filter(c=>c.userId===user.id||c.userEmail===user.email);
+            let totalUnread=0;
+            myChats.forEach(myChat=>{
+              const lastRead=parseInt(localStorage.getItem('ma_cust_read_'+myChat.id)||'0');
+              const msgs=myChat.messages||[];
+              for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='founder')totalUnread++;}
+            });
+            if(totalUnread===0)return h('span',{});
             const b=document.createElement('span');
             b.id='chat-nav-badge';
             b.style.cssText='position:absolute;top:-4px;right:-6px;background:#25d366;color:#fff;border-radius:10px;min-width:16px;height:16px;font-size:9px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 3px;';
-            b.textContent=unread>99?'99+':String(unread);
+            b.textContent=totalUnread>99?'99+':String(totalUnread);
             return b;
           })() : h('span',{}),
         ]),
@@ -1661,6 +1805,11 @@ function renderFounder(){
 
   function setTab(t){
     tab=t;refresh();
+    // Cleanup chat poll timer jika pindah dari tab chat
+    if(typeof window['ma_prev_chat_cleanup']==='function'&&t!=='chat'){
+      window['ma_prev_chat_cleanup']();
+      window['ma_prev_chat_cleanup']=null;
+    }
     const main=document.getElementById('f-main');
     if(!main)return;
     main.innerHTML='';
@@ -1853,8 +2002,8 @@ function renderFounder(){
               DB.set('orders',ords);
               showToast('Status diperbarui: '+e.target.value);
               if(e.target.value==='done'&&prevStatus!=='done'){
-                // Create/ensure chat exists — pakai userEmail sebagai fallback
-                getOrCreateChat(o.userId,o.userName,o.userEmail);
+                // Create/ensure chat exists per order
+                getOrCreateOrderChat(ords[idx]);
                 showToast('✅ Chat diaktifkan untuk '+o.userName);
               }
             }
@@ -1869,9 +2018,26 @@ function renderFounder(){
             ]),
             h('div',{style:{color:'#444',fontSize:'12px',marginBottom:'8px'}},'dari '+o.userName+' ('+o.userEmail+') · '+o.createdAt),
             h('div',{style:{background:'#0f0f0f',borderRadius:'8px',padding:'12px',fontSize:'13px',color:'#888',lineHeight:1.6,marginBottom:'10px'}},o.message),
-            h('button',{style:{background:'#111',border:'1px solid #222',color:'#888',borderRadius:'8px',padding:'6px 14px',fontSize:'12px'},onClick(){
-              setTab('chat');
-            }},'💬 Buka Chat'),
+            h('div',{style:{display:'flex',gap:'8px',flexWrap:'wrap'}},[
+              h('button',{style:{background:'#111',border:'1px solid #222',color:'#888',borderRadius:'8px',padding:'6px 14px',fontSize:'12px'},onClick(){
+                // Set flag DULU sebelum setTab supaya buildFounderChat bisa baca
+                window._openOrderChatId=o.id;
+                setTab('chat');
+              }},'💬 Buka Chat Order'),
+              (() => {
+                const allChats=DB.get('chats')||[];
+                const hasChat=allChats.find(c=>c.orderId===o.id);
+                if(!hasChat)return h('span',{});
+                return h('button',{style:{background:'#1a0000',border:'1px solid #330000',color:'#ff4444',borderRadius:'8px',padding:'6px 14px',fontSize:'12px'},onClick(){
+                  if(!confirm('Hapus chat untuk order "'+o.productName+'" dari '+o.userName+'?\nPesan tidak bisa dipulihkan!'))return;
+                  const cs=DB.get('chats')||[];
+                  const filtered=cs.filter(c=>c.orderId!==o.id);
+                  DB.set('chats',filtered);
+                  showToast('Chat order dihapus.');
+                  setTab('orders');
+                }},'🗑️ Hapus Chat');
+              })(),
+            ]),
           ]);
         })
       ),
@@ -1892,8 +2058,21 @@ function renderFounder(){
   // Founder Chat Tab
   function buildFounderChat(){
     const wrap=h('div',{id:'founder-chat-wrap'},[
-      h('h2',{style:{fontSize:'24px',fontWeight:800,marginBottom:'6px'}},'Chat Customer'),
-      h('p',{style:{color:'#444',fontSize:'13px',marginBottom:'20px'}},'Pilih percakapan untuk dibalas'),
+      h('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'6px'}},[
+        h('h2',{style:{fontSize:'24px',fontWeight:800}},'Chat Customer'),
+        h('button',{style:{background:'#1a0000',border:'1px solid #330000',color:'#ff4444',borderRadius:'8px',padding:'7px 14px',fontSize:'12px',cursor:'pointer'},onClick(){
+          const allC=DB.get('chats')||[];
+          if(allC.length===0){showToast('Tidak ada chat.');return;}
+          if(!confirm('Hapus SEMUA chat ('+allC.length+' percakapan)?\nTidak bisa dipulihkan!'))return;
+          DB.set('chats',[]);
+          if(currentChatDestroy){currentChatDestroy();currentChatDestroy=null;}
+          currentOpenChatId=null;
+          chatPanel.innerHTML='';
+          renderList();
+          showToast('Semua chat dihapus.');
+        }},'🗑️ Hapus Semua'),
+      ]),
+      h('p',{style:{color:'#444',fontSize:'13px',marginBottom:'20px'}},'Setiap orderan punya chat tersendiri'),
     ]);
 
     const listEl=h('div',{id:'founder-chat-list',style:{display:'flex',flexDirection:'column',gap:'8px',marginBottom:'20px'}});
@@ -1908,8 +2087,7 @@ function renderFounder(){
       currentOpenChatId=chat.id;
       chatPanel.innerHTML='';
 
-      // Tandai sudah dibaca — reset unread dengan cara tambah pesan kosong founder (tidak, cukup flag)
-      // Simpan "lastReadAt" per chat di localStorage
+      // Mark as read
       const readKey='ma_chat_read_'+chat.id;
       const msgs=((DB.get('chats')||[]).find(c=>c.id===chat.id)?.messages)||[];
       localStorage.setItem(readKey, String(msgs.length));
@@ -1919,13 +2097,32 @@ function renderFounder(){
         h('div',{style:{width:'38px',height:'38px',borderRadius:'50%',background:'#222',border:'1px solid #333',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:'16px'}},chat.userName?.[0]?.toUpperCase()||'?'),
         h('div',{style:{flex:1}},[
           h('div',{style:{fontWeight:700,fontSize:'14px'}},chat.userName||'Customer'),
-          h('div',{style:{color:'#444',fontSize:'11px'}},chat.userEmail||''),
+          h('div',{style:{color:'#25d366',fontSize:'11px',fontWeight:600}},'📦 '+( chat.productName||'Order')),
+          h('div',{style:{color:'#444',fontSize:'10px'}},chat.userEmail||''),
         ]),
+        // Tombol hapus chat langsung dari header
+        h('button',{style:{background:'#1a0000',border:'1px solid #330000',color:'#ff4444',borderRadius:'8px',padding:'6px 10px',fontSize:'11px'},onClick(){
+          if(!confirm('Hapus chat "'+chat.productName+'" dari '+chat.userName+'?'))return;
+          const cs=DB.get('chats')||[];
+          DB.set('chats',cs.filter(c=>c.id!==chat.id));
+          chatPanel.innerHTML='';currentOpenChatId=null;
+          if(currentChatDestroy){currentChatDestroy();currentChatDestroy=null;}
+          renderList();showToast('Chat dihapus.');
+        }},'🗑️'),
       ]);
       const {el:chatEl,destroy}=buildChatUI(chat.id,'founder');
       currentChatDestroy=destroy;
       const container=h('div',{style:{background:'#0a0a0a',border:'1px solid #1a1a1a',borderRadius:'14px',overflow:'hidden'}},[header,chatEl]);
       chatPanel.appendChild(container);
+    }
+
+    function getUnreadCount(chat){
+      const readKey='ma_chat_read_'+chat.id;
+      const lastRead=parseInt(localStorage.getItem(readKey)||'0');
+      const msgs=chat.messages||[];
+      let n=0;
+      for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='customer')n++;}
+      return n;
     }
 
     function renderList(){
@@ -1940,7 +2137,7 @@ function renderFounder(){
         return;
       }
 
-      // Sort: yang ada unread atau typing duluan
+      // Sort: unread duluan, lalu lastActivity
       const sorted=[...allChats].sort((a,b)=>{
         const ua=getUnreadCount(a), ub=getUnreadCount(b);
         if(ub!==ua) return ub-ua;
@@ -1963,7 +2160,7 @@ function renderFounder(){
         row.addEventListener('mouseenter',()=>{if(!isOpen)row.style.background='#0f0f0f';});
         row.addEventListener('mouseleave',()=>{if(!isOpen)row.style.background=isOpen?'#111':'#0a0a0a';});
 
-        // Avatar
+        // Avatar — inisial nama user
         const av=document.createElement('div');
         av.style.cssText=`width:44px;height:44px;border-radius:50%;background:${col};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;color:#fff;flex-shrink:0;`;
         av.textContent=(chat.userName?.[0]||'?').toUpperCase();
@@ -1973,35 +2170,37 @@ function renderFounder(){
         const info=document.createElement('div');
         info.style.cssText='flex:1;min-width:0;';
 
+        // Baris atas: nama user
         const nameRow=document.createElement('div');
-        nameRow.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:3px;';
+        nameRow.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:2px;';
         const nameEl=document.createElement('span');
         nameEl.style.cssText=`font-weight:${unread>0?'800':'600'};font-size:14px;color:${unread>0?'#fff':'#ccc'};`;
         nameEl.textContent=chat.userName||'Customer';
         nameRow.appendChild(nameEl);
         info.appendChild(nameRow);
 
+        // Baris produk
+        const prodEl=document.createElement('div');
+        prodEl.style.cssText='font-size:11px;color:#25d366;font-weight:600;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+        prodEl.textContent='📦 '+(chat.productName||'Order');
+        info.appendChild(prodEl);
+
+        // Preview pesan terakhir
         const previewEl=document.createElement('div');
         previewEl.style.cssText=`font-size:12px;color:${isTyping?'#44ff44':unread>0?'#aaa':'#444'};font-style:${isTyping?'italic':'normal'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
-        if(isTyping){
-          previewEl.innerHTML='<span style="letter-spacing:2px">● ● ●</span> mengetik...';
-        } else {
-          const prefix=lastMsg?.role==='founder'?'Kamu: ':'';
-          previewEl.textContent=lastMsg?(prefix+lastMsg.text):'Belum ada pesan';
-        }
+        if(isTyping){previewEl.innerHTML='<span style="letter-spacing:2px">● ● ●</span> mengetik...';}
+        else{const prefix=lastMsg?.role==='founder'?'Kamu: ':'';previewEl.textContent=lastMsg?(prefix+lastMsg.text):'Belum ada pesan';}
         info.appendChild(previewEl);
         row.appendChild(info);
 
-        // Right side: waktu + badge
+        // Right: waktu + badge
         const right=document.createElement('div');
         right.style.cssText='display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0;';
-
         const timeEl=document.createElement('div');
         timeEl.style.cssText='color:#333;font-size:10px;';
         const ts=chat.lastActivity||chat.createdAt||'';
         timeEl.textContent=ts.split(',')[0]||ts;
         right.appendChild(timeEl);
-
         if(unread>0){
           const badge=document.createElement('div');
           badge.style.cssText='background:#25d366;color:#fff;border-radius:50%;min-width:22px;height:22px;font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center;padding:0 4px;';
@@ -2011,25 +2210,13 @@ function renderFounder(){
         row.appendChild(right);
 
         row.addEventListener('click',()=>{openChat(chat);renderList();});
+
         listEl.appendChild(row);
       });
 
-      // Update sidebar badge total
+      // Update sidebar badge
       const totalUnread=allChats.reduce((a,c)=>a+getUnreadCount(c),0);
       _setBadge('ftab-chat', totalUnread);
-    }
-
-    // getUnreadCount pakai localStorage untuk track "sudah dibaca"
-    function getUnreadCount(chat){
-      const readKey='ma_chat_read_'+chat.id;
-      const lastRead=parseInt(localStorage.getItem(readKey)||'0');
-      const msgs=chat.messages||[];
-      // Hitung pesan customer setelah index lastRead
-      let n=0;
-      for(let i=lastRead;i<msgs.length;i++){
-        if(msgs[i].role==='customer') n++;
-      }
-      return n;
     }
 
     // Live-refresh list tiap 4 detik
@@ -2038,10 +2225,9 @@ function renderFounder(){
         const res=await fetch(`${JSONBIN_API}/b/${_binId}/latest`,{headers:{'X-Master-Key':JSONBIN_KEY,'X-Bin-Meta':false}});
         if(!res.ok)return;
         const data=await res.json();
-        if(data.chats){_cache.chats=data.chats;_localSet('chats',data.chats);}
-        if(!currentOpenChatId) renderList(); // hanya refresh list jika chat tidak sedang terbuka
+        if(Array.isArray(data.chats)){_cache.chats=data.chats;_localSet('chats',data.chats);}
+        if(!currentOpenChatId) renderList();
         else {
-          // Tetap update badge di list tanpa full render
           const allChats=DB.get('chats')||[];
           const totalUnread=allChats.reduce((a,c)=>a+getUnreadCount(c),0);
           _setBadge('ftab-chat', totalUnread);
@@ -2049,33 +2235,36 @@ function renderFounder(){
       }catch(e){}
     },4000);
 
-    // Cleanup saat tab diganti
-    const origSetTab=window._founderSetTab;
-    window._founderSetTab=(t)=>{
+    // Cleanup listener saat tab diganti — gunakan custom event
+    const _cleanupKey='ma_chat_cleanup';
+    window[_cleanupKey]=()=>{
       clearInterval(listPollTimer);
       if(currentChatDestroy){currentChatDestroy();currentChatDestroy=null;}
-      origSetTab(t);
     };
+    // Panggil cleanup lama jika ada
+    const _prevCleanup=window['ma_prev_chat_cleanup'];
+    if(typeof _prevCleanup==='function') _prevCleanup();
+    window['ma_prev_chat_cleanup']=window[_cleanupKey];
 
     renderList();
+
+    // Auto-open jika ada _openOrderChatId saat masuk tab chat
+    if(window._openOrderChatId){
+      const targetOrder=window._openOrderChatId;
+      delete window._openOrderChatId;
+      const targetChat=(DB.get('chats')||[]).find(c=>c.orderId===targetOrder);
+      if(targetChat){setTimeout(()=>{openChat(targetChat);renderList();},100);}
+    }
+
     wrap.appendChild(listEl);
     wrap.appendChild(chatPanel);
 
-    // Inisialisasi badge sidebar dari data saat ini
+    // Init badge
     const allChats=DB.get('chats')||[];
     const totalUnread=allChats.reduce((a,c)=>a+getUnreadCount(c),0);
     _setBadge('ftab-chat', totalUnread);
 
     return wrap;
-
-    function getUnreadCount(chat){
-      const readKey='ma_chat_read_'+chat.id;
-      const lastRead=parseInt(localStorage.getItem(readKey)||'0');
-      const msgs=chat.messages||[];
-      let n=0;
-      for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='customer')n++;}
-      return n;
-    }
   }
 
   function buildAppeals(){
