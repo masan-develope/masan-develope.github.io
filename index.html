@@ -90,6 +90,8 @@
   .google-picker-name{font-size:14px;font-weight:500;color:#202124;}
   .google-picker-email{font-size:12px;color:#5f6368;}
 </style>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
 <div id="app">
@@ -419,26 +421,35 @@ function startPolling(session){
       ['users','orders','appeals','testimoni'].forEach(k=>{if(_cache[k]!==undefined)_localSet(k,_cache[k]);});
 
       if(!isFounder){
-        // Cek apakah user ini diblokir — hanya jika users berhasil diload
+        // Cek apakah user ini diblokir
         const users=_cache.users||[];
         if(users.length>0){
           const me=users.find(u=>u.id===session.id);
-          if(me&&me.blocked){
-            stopPolling();
-            DB.set('session',null);
-            renderBlocked(me);
-            return;
-          }
+          if(me&&me.blocked){stopPolling();DB.set('session',null);renderBlocked(me);return;}
         }
-        // Update badge chat customer real-time — cek semua chat order milik user
+        // Update badge chat + notif pesan founder → customer
         if(Array.isArray(_cache.chats)){
           const myChats=_cache.chats.filter(c=>c.userId===session.id||c.userEmail===session.email);
           let totalUnread=0;
+          let newFounderMsg=null;
+          const _prevTotalKey='ma_cust_total_msgs_'+session.id;
+          const prevTotal=parseInt(localStorage.getItem(_prevTotalKey)||'0');
+          let newTotal=0;
           myChats.forEach(myChat=>{
             const lastRead=parseInt(localStorage.getItem('ma_cust_read_'+myChat.id)||'0');
             const msgs=myChat.messages||[];
-            for(let i=lastRead;i<msgs.length;i++){if(msgs[i].role==='founder')totalUnread++;}
+            newTotal+=msgs.length;
+            for(let i=lastRead;i<msgs.length;i++){
+              if(msgs[i].role==='founder'){totalUnread++;newFounderMsg=msgs[i];}
+            }
           });
+          // Push notif ke customer kalau ada pesan baru dari founder
+          if(newTotal>prevTotal&&prevTotal>0&&newFounderMsg){
+            showPushNotif('💬 MasAn Dev',newFounderMsg.text?.slice(0,80)||'Pesan baru','chat',null,null);
+            sendPushNotif('💬 MasAn Dev',newFounderMsg.text?.slice(0,80)||'Pesan baru',session.id,null);
+          }
+          if(newTotal>0)localStorage.setItem(_prevTotalKey,String(newTotal));
+          // Update badge
           const navChatBtn=document.getElementById('nav-chat');
           if(navChatBtn){
             const existBadge=navChatBtn.querySelector('#chat-nav-badge');
@@ -449,6 +460,20 @@ function startPolling(session){
             }
           }
         }
+        // Notif order done ke customer
+        if(Array.isArray(_cache.orders)){
+          const myOrders=_cache.orders.filter(o=>o.userId===session.id||o.userEmail===session.email);
+          const _doneKey='ma_cust_notif_done_'+session.id;
+          const alreadyNotified=JSON.parse(localStorage.getItem(_doneKey)||'[]');
+          myOrders.forEach(o=>{
+            if(o.status==='done'&&!alreadyNotified.includes(o.id)){
+              showPushNotif('✅ Order Selesai!',`Order "${o.productName||'?'}" kamu sudah di-acc!`,'orders',null,null);
+              sendPushNotif('✅ Order Selesai!',`Order "${o.productName||'?'}" kamu sudah di-acc!`,session.id,null);
+              alreadyNotified.push(o.id);
+            }
+          });
+          localStorage.setItem(_doneKey,JSON.stringify(alreadyNotified));
+        }
       }
 
       if(isFounder){
@@ -456,7 +481,10 @@ function startPolling(session){
         const orders=data.orders||[];
         if(orders.length>_lastOrderCount&&_lastOrderCount>0){
           const newOrder=orders[orders.length-1];
-          if(newOrder)showPushNotif('📦 Order Baru!',`${newOrder.userName||'?'} memesan ${newOrder.productName||'?'}`,'orders',null,null);
+          if(newOrder){
+            showPushNotif('📦 Order Baru!',`${newOrder.userName||'?'} memesan ${newOrder.productName||'?'}`,'orders',null,null);
+            sendPushNotif('📦 Order Baru!',`${newOrder.userName||'?'} memesan ${newOrder.productName||'?'}`,null,'founder');
+          }
         }
         _lastOrderCount=orders.length;
 
@@ -470,13 +498,8 @@ function startPolling(session){
             const lastMsg=msgs[msgs.length-1];
             if(lastMsg&&lastMsg.role==='customer'){
               const senderName=chat.userName||'Customer';
-              showPushNotif(
-                '💬 '+senderName,
-                lastMsg.text?.slice(0,80)||'',
-                'chat',
-                chat.id,
-                senderName
-              );
+              showPushNotif('💬 '+senderName,lastMsg.text?.slice(0,80)||'','chat',chat.id,senderName);
+              sendPushNotif('💬 '+senderName,lastMsg.text?.slice(0,80)||'',null,'founder');
               break;
             }
           }
@@ -487,7 +510,7 @@ function startPolling(session){
         updateFounderBadges(data);
       }
     }catch(e){}
-  }, 8000); // poll tiap 8 detik
+  }, 3000); // poll tiap 3 detik
 }
 
 function stopPolling(){
@@ -576,12 +599,69 @@ function showPushNotif(title,body,tabTarget,chatId,senderName){
 (()=>{const s=document.createElement('style');s.textContent='@keyframes slideDownNotifOut{to{opacity:0;transform:translateX(-50%) translateY(-120%)}}';document.head.appendChild(s);})();
 
 // ════════════════════════════════════════
-// SERVICE WORKER — untuk push notif saat web tidak aktif
+// FIREBASE FCM — push notif real device
 // ════════════════════════════════════════
-(function registerSW(){
-  if(!('serviceWorker' in navigator))return;
-  navigator.serviceWorker.register('/sw.js').catch(()=>{});
-})();
+const FCM_VAPID = 'BEvr7AZmKE2_quV1cluYnd7JZolfKP34WuwUyFPnQDuxhPZ28bMXx2-zHOT4iJ8eIVhBDW60gfSUZiyqjW30XGs';
+const WORKER_URL = 'https://masan-notif.muhamadandisaputra2005.workers.dev';
+
+let _fcmMessaging = null;
+
+async function initFCM(session) {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    await navigator.serviceWorker.register('/sw.js');
+    const sw = await navigator.serviceWorker.ready;
+
+    // Init Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp({
+        apiKey: "AIzaSyAQBoUDJptubA-qTL5lk2tdSyE26IITsZo",
+        authDomain: "masan-dev.firebaseapp.com",
+        projectId: "masan-dev",
+        storageBucket: "masan-dev.firebasestorage.app",
+        messagingSenderId: "334683741155",
+        appId: "1:334683741155:web:cbc57d20a0f66dfc74ded6"
+      });
+    }
+
+    _fcmMessaging = firebase.messaging();
+
+    // Minta izin notifikasi
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+
+    // Ambil FCM token
+    const token = await _fcmMessaging.getToken({ vapidKey: FCM_VAPID, serviceWorkerRegistration: sw });
+    if (!token) return;
+
+    // Simpan token ke data user di JSONBin
+    const users = DB.get('users') || [];
+    const idx = users.findIndex(u => u.id === session.id);
+    if (idx !== -1 && users[idx].fcmToken !== token) {
+      users[idx].fcmToken = token;
+      DB.set('users', users);
+    }
+
+    // Notif saat app di foreground
+    _fcmMessaging.onMessage(payload => {
+      const { title, body } = payload.notification || {};
+      showPushNotif(title || 'MasAn Dev', body || '', null, null, null);
+    });
+
+  } catch (e) { console.warn('FCM init gagal:', e); }
+}
+
+// Kirim push via Cloudflare Worker
+async function sendPushNotif(title, message, targetUserId, targetRole) {
+  if (!WORKER_URL) return;
+  try {
+    await fetch(WORKER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'push', title, message, targetUserId, targetRole }),
+    });
+  } catch (e) { console.warn('sendPushNotif error:', e); }
+}
 
 function updateFounderBadges(data){
   // Orders badge — order baru sejak terakhir kali founder buka tab orders
@@ -3102,10 +3182,11 @@ function renderFounder(){
 
   const sess=DB.get('session');
   if(!sess){renderAuth();}
-  else if(sess.role==='founder'){renderFounder();}
+  else if(sess.role==='founder'){renderFounder();initFCM(sess);}
   else if(sess.blocked){renderBlocked(sess);}
   else{
     renderCustomer(sess);
+    initFCM(sess);
     const hash=location.hash.replace('#','').trim();
     if(hash&&['home','products','social','chat','account'].includes(hash)){
       setTimeout(()=>{const btn=document.getElementById('nav-'+hash);if(btn)btn.click();},50);
