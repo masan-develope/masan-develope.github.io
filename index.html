@@ -1426,9 +1426,38 @@ function sendChatMessage(chatId,text,role){
   const chats=DB.get('chats')||[];
   const idx=chats.findIndex(c=>c.id===chatId);
   if(idx===-1)return;
-  chats[idx].messages.push({id:uid(),text:strip(text),role,time:now()});
+  const msg={id:uid(),text:strip(text),role,time:now()};
+  chats[idx].messages.push(msg);
   chats[idx].lastActivity=now();
-  DB.set('chats',chats);
+  // Simpan ke lokal dulu SEGERA — sebelum push ke server
+  _localSet('chats',chats);
+  _cache.chats=chats;
+  // Set lastSentAt panjang (10 detik) biar polling tidak timpa sebelum push selesai
+  _lastSentAt=Date.now();
+  // Push ke server dengan retry jika gagal
+  (async()=>{
+    let retries=0;
+    while(retries<3){
+      try{
+        const res=await fetch(`${JSONBIN_API}/b/${_binId}`,{
+          method:'PUT',
+          headers:{'Content-Type':'application/json','X-Master-Key':JSONBIN_KEY},
+          body:JSON.stringify({
+            users:_cache.users||[],
+            orders:_cache.orders||[],
+            appeals:_cache.appeals||[],
+            chats:_cache.chats||[],
+            testimoni:_cache.testimoni||[],
+            settings:_cache.settings||{},
+            products:_cache.products||[],
+          }),
+        });
+        if(res.ok){_lastSentAt=Date.now();break;}
+      }catch(e){}
+      retries++;
+      await new Promise(r=>setTimeout(r,800));
+    }
+  })();
 }
 
 // Typing state per chat (simpan di memory saja)
@@ -1516,23 +1545,33 @@ function buildChatUI(chatId, myRole, onClose){
         const msSinceSent=Date.now()-_lastSentAt;
         const serverChat=data.chats.find(c=>c.id===chatId);
         const localChat=(DB.get('chats')||[]).find(c=>c.id===chatId);
-        if(serverChat&&localChat){
-          const sLen=serverChat.messages?.length||0;
-          const lLen=localChat.messages?.length||0;
-          if(msSinceSent<=5000&&lLen>sLen){
-            // Lokal masih lebih update — skip overwrite, render dari lokal
-            renderMsgs();
-            return;
-          }
-          // Merge: gunakan yang lebih banyak pesan
-          if(lLen>sLen){
-            // Push lokal ke server
+        const sLen=serverChat?.messages?.length||0;
+        const lLen=localChat?.messages?.length||0;
+
+        // Jika baru kirim dalam 10 detik DAN lokal punya lebih banyak pesan → skip
+        if(msSinceSent<=10000&&lLen>=sLen){
+          renderMsgs();
+          return;
+        }
+
+        // Jika lokal masih lebih banyak (server belum sync) → push ulang dan render lokal
+        if(lLen>sLen){
+          setTimeout(()=>DB._push(),50);
+          renderMsgs();
+          return;
+        }
+
+        // Merge: gabungkan pesan lokal yang belum ada di server
+        if(serverChat&&localChat&&lLen>0){
+          const serverIds=new Set((serverChat.messages||[]).map(m=>m.id));
+          const localOnly=(localChat.messages||[]).filter(m=>!serverIds.has(m.id));
+          if(localOnly.length>0){
+            serverChat.messages=[...(serverChat.messages||[]),...localOnly].sort((a,b)=>a.time>b.time?1:-1);
             setTimeout(()=>DB._push(),50);
-            renderMsgs();
-            return;
           }
         }
-        // Server lebih update atau sama — aman untuk overwrite
+
+        // Server lebih update — aman untuk update cache
         _cache.chats=data.chats;
         _localSet('chats',data.chats);
         renderMsgs(data.chats);
